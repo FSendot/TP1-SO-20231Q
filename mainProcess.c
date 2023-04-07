@@ -144,13 +144,10 @@ int main(int argc, char argv[]) {
         free(inPipes.pipes);
 
         // Now we need to make all the synchronization process for reading all the outputs from the slaves
-        // To avoid race conditions, we need to block signals thrown by the childs while the main process
         // is blocked waiting for the childs to be on ready state
-        sigset_t empty_mask;
+
         fd_set readfd;
         int fdAmount, ndfs;
-
-        sigemptyset(&empty_mask);
 
         ndfs = 0;
         for(int i=0; i < slavesAmount ;i++)
@@ -177,8 +174,8 @@ int main(int argc, char argv[]) {
             }
 
             // Using pselect and unmasking the childs should let the program free of race conditions
-            if((fdAmount = pselect(ndfs, NULL, &readfd, NULL, NULL, &empty_mask)) == ERROR){
-                perror("pselect");
+            if((fdAmount = select(ndfs, NULL, &readfd, NULL, NULL)) == ERROR){
+                perror("select");
                 exit(EXIT_FAILURE);
             }
             // No slave processes free, should never happen because we're not using a timeout condition
@@ -188,6 +185,7 @@ int main(int argc, char argv[]) {
             for(int i=0; i < slavesAmount && fdAmount > 0 ;i++){
                 if(closedPipes[i] != 1 && FD_ISSET(outPipes.pipes[i][0], &readfd)){
                     charsRead = read(outPipes.pipes[i][0], buffer, BUFFER_SIZE);
+                    
                     // EOF reached on that pipe
                     if(charsRead == 0){
                         if(close(outPipes.pipes[i] == -1)){
@@ -223,13 +221,8 @@ int main(int argc, char argv[]) {
         }
         free(outPipes.pipes);
 
-        // To avoid race conditions, we need to block signals thrown by the childs while the main process
-        // is blocked waiting for the childs to be on ready state
-        sigset_t empty_mask;
         fd_set writefd;
         int fdAmount, ndfs;
-
-        sigemptyset(&empty_mask);
 
         ndfs = 0;
         for(int i=0; i < slavesAmount ;i++)
@@ -245,8 +238,8 @@ int main(int argc, char argv[]) {
             }
 
             // Using pselect and unmasking the childs should let the program free of race conditions
-            if((fdAmount = pselect(ndfs, NULL, &writefd, NULL, NULL, &empty_mask)) == ERROR){
-                perror("pselect");
+            if((fdAmount = select(ndfs, NULL, &writefd, NULL, NULL)) == ERROR){
+                perror("select");
                 exit(EXIT_FAILURE);
             }
             // No slave processes free
