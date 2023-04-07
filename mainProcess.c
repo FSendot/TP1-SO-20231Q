@@ -181,8 +181,9 @@ int main(int argc, char argv[]) {
                 perror("pselect");
                 exit(EXIT_FAILURE);
             }
-            // No slave processes free
+            // No slave processes free, should never happen because we're not using a timeout condition
             if(fdAmount == 0) continue;
+            
             // For every process that is ready, we can write on it the next file that needs to be processed
             for(int i=0; i < slavesAmount ;i++){
                 if(closedPipes[i] != 1 && FD_ISSET(outPipes.pipes[i][0], &readfd)){
