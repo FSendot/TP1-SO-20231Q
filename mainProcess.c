@@ -154,16 +154,18 @@ int main(int argc, char argv[]) {
 
         sigemptyset(&empty_mask);
 
+        ndfs = 0;
+        for(int i=0; i < slavesAmount ;i++)
+            ndfs = inPipes.pipes[i][1] > ndfs ? inPipes.pipes[i][1] : ndfs;
+        ndfs++;
+
         // We need to process the rest of the programs arguments
         while(argCount < argc){
             // Initialize the File Descriptor set for the use of select
             FD_ZERO(&writefd);
-            ndfs = 0;
             for(int i=0; i<slavesAmount ;i++){
                 FD_SET(inPipes.pipes[i][1], &writefd);
-                ndfs = inPipes.pipes[i][1] > ndfs ? inPipes.pipes[i][1] : ndfs;
             }
-            ndfs++;
 
             // Using pselect and unmasking the childs should let the program free of race conditions
             if((fdAmount = pselect(ndfs, NULL, &writefd, NULL, NULL, &empty_mask)) == ERROR){
@@ -172,6 +174,7 @@ int main(int argc, char argv[]) {
             }
             // No slave processes free
             if(fdAmount == 0) continue;
+            // For every process that is ready, we can write on it the next file that needs to be processed
             for(int i=0; i < slavesAmount && argCount < argc;i++){
                 if(FD_ISSET(inPipes.pipes[i][1], &writefd)){
                     write(inPipes.pipes[i][1], argv[argCount], strlen(argv[argCount]));
