@@ -183,9 +183,9 @@ int main(int argc, char argv[]) {
             }
             // No slave processes free, should never happen because we're not using a timeout condition
             if(fdAmount == 0) continue;
-            
+
             // For every process that is ready, we can write on it the next file that needs to be processed
-            for(int i=0; i < slavesAmount ;i++){
+            for(int i=0; i < slavesAmount && fdAmount > 0 ;i++){
                 if(closedPipes[i] != 1 && FD_ISSET(outPipes.pipes[i][0], &readfd)){
                     charsRead = read(outPipes.pipes[i][0], buffer, BUFFER_SIZE);
                     // EOF reached on that pipe
@@ -201,6 +201,7 @@ int main(int argc, char argv[]) {
                         // Here we need to put the line read on the final file and the shared memory space
                         //after we implement the shared memory program
                     }
+                    fdAmount--;
                 }
             }
         }
