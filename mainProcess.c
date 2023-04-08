@@ -13,7 +13,7 @@
 #define ERROR -1
 
 #define MAX_PER_SLAVE 3
-#define INITIAL_SLAVES 5
+#define INITIAL_SLAVES 1
 #define BUFFER_SIZE 512
 
 // Data structure useful for creating a group of pipes used by the main process
@@ -81,13 +81,16 @@ int main(int argc, char *argv[]) {
 
 
         pid_t pid;
-        if((pid = fork()) == ERROR){
+        pid = fork();
+        if(pid == ERROR){
             perror("fork");
             exit(EXIT_FAILURE);
         }
         if(pid == 0){
             printf("Quinto printf :3\n");
 
+            //close(0)
+            //dup(inPipes.pipes[i][0])      r-end del pipe
             if(dup2(inPipes.pipes[i][0], STDIN) == ERROR){
                 perror("dup2");
                 exit(EXIT_FAILURE);
@@ -100,10 +103,15 @@ int main(int argc, char *argv[]) {
             }
             printf("Séptimo printf :3\n");
 
-            if(dup2(outPipes.pipes[i][1], STDOUT) == ERROR){
+            
+            close(1);
+            int err = dup(outPipes.pipes[i][1]);     //w-end del pipe            
+            if(err == ERROR){
                 perror("dup");
                 exit(EXIT_FAILURE);
             }
+            
+
             printf("Octavo printf :3\n");
 
             if(close(outPipes.pipes[i][1]) == ERROR || close(outPipes.pipes[i][0]) == ERROR){
@@ -123,12 +131,13 @@ int main(int argc, char *argv[]) {
 
             printf("Pude crear todos los esclavos :3\n");
             // Everything is ready for the slaves processes
-            char *argvC[] = {"./slave", NULL};
+            char *const argvC[] = {"./slave", NULL};
             char *envpC[] = {NULL};
-            if(execve("slave", argvC, envpC) == ERROR){
-                perror("execve");
-                exit(EXIT_FAILURE);
-            }
+            execve("./slave", argvC, 0);
+            
+            //If reached this line, is because it was an error.
+            perror("execve");
+            exit(EXIT_FAILURE);
         } else{
             // Now we have to distribute evenly all the initial paths that the slaves have to process
             for(int i=0; i<MAX_PER_SLAVE && argCount < argc ; i++)
@@ -276,9 +285,12 @@ int main(int argc, char *argv[]) {
         }
         free(inPipes.pipes);
     }
+    
 
     // Waits until ALL child processes to finish their tasks
-    wait(&status);
+    while(waitpid(-1, &status, 0) > 0);
+    
+    //wait(&status);
     if(status != 0){
         perror("status of some child");
         exit(EXIT_FAILURE);
