@@ -16,19 +16,12 @@
 #define INITIAL_SLAVES 5
 #define BUFFER_SIZE 512
 
-// This variables are for handling any problem that the childs could give at processing the files
-static volatile sig_atomic_t got_SIGCHLD = 0;
-
-static void child_sig_handler(int sig){
-    got_SIGCHLD = 1;
-}
-
 // Data structure useful for creating a group of pipes used by the main process
 typedef struct pipeGroup{
     int **pipes;
 } pipeGroup;
 
-int main(int argc, char argv[]) {
+int main(int argc, char *argv[]) {
     // argsv[] = {"./mainProcess", "./archivo1", "./archivo2"} 
     // argc = mainPath + #arguments
 
@@ -53,8 +46,13 @@ int main(int argc, char argv[]) {
     */
     int slavesAmount = (argc - 1) < INITIAL_SLAVES ? (argc - 1) : INITIAL_SLAVES;
 
+    printf("Primer printf :3\n");
+
+
     inPipes.pipes = malloc(sizeof(int*)*slavesAmount);
     outPipes.pipes = malloc(sizeof(int*)*slavesAmount);
+
+    printf("Segundo printf :3\n");
 
     if(inPipes.pipes == NULL || outPipes.pipes == NULL){
         perror("malloc");
@@ -64,6 +62,7 @@ int main(int argc, char argv[]) {
     for (int i = 0; i < slavesAmount; i++) {
         inPipes.pipes[i] = malloc(sizeof(int)*2);
         outPipes.pipes[i] = malloc(sizeof(int)*2);
+        printf("Tercer printf :3\n");
 
         if(inPipes.pipes[i] == NULL || outPipes.pipes[i] == NULL){
             perror("malloc");
@@ -78,29 +77,40 @@ int main(int argc, char argv[]) {
             exit(EXIT_FAILURE);
         }
 
+        printf("Cuarto printf :3\n");
+
+
         pid_t pid;
         if((pid = fork()) == ERROR){
             perror("fork");
             exit(EXIT_FAILURE);
         }
         if(pid == 0){
+            printf("Quinto printf :3\n");
+
             if(dup2(inPipes.pipes[i][0], STDIN) == ERROR){
                 perror("dup2");
                 exit(EXIT_FAILURE);
             }
-            if(close(inPipes.pipes[i][0]) == ERROR ||close(inPipes.pipes[i][1]) == ERROR){
+            printf("Sexto printf :3\n");
+
+            if(close(inPipes.pipes[i][0]) == ERROR || close(inPipes.pipes[i][1]) == ERROR){
                 perror("close");
                 exit(EXIT_FAILURE);
             }
+            printf("Séptimo printf :3\n");
 
             if(dup2(outPipes.pipes[i][1], STDOUT) == ERROR){
-                perror("dup2");
+                perror("dup");
                 exit(EXIT_FAILURE);
             }
+            printf("Octavo printf :3\n");
+
             if(close(outPipes.pipes[i][1]) == ERROR || close(outPipes.pipes[i][0]) == ERROR){
                 perror("close");
                 exit(EXIT_FAILURE);
             }
+
 
             // No need for the pipes variables to exist in the child process
             // We can't have memory leaks anywhere, so we're freeing everything that we are not using
@@ -111,6 +121,7 @@ int main(int argc, char argv[]) {
             free(inPipes.pipes);
             free(outPipes.pipes);
 
+            printf("Pude crear todos los esclavos :3\n");
             // Everything is ready for the slaves processes
             char *argvC[] = {"./slave", NULL};
             char *envpC[] = {NULL};
@@ -122,7 +133,7 @@ int main(int argc, char argv[]) {
             // Now we have to distribute evenly all the initial paths that the slaves have to process
             for(int i=0; i<MAX_PER_SLAVE && argCount < argc ; i++)
                 for(int j=0; j<slavesAmount && argCount < argc; j++, argCount++)
-                    write(inPipes.pipes[j][1], argv[argCount], strlen(argv[argCount]));
+                    write(inPipes.pipes[j][1], argv[argCount], strlen(argv[argCount]) + 1);
         }
     }
 
@@ -188,7 +199,7 @@ int main(int argc, char argv[]) {
                     
                     // EOF reached on that pipe
                     if(charsRead == 0){
-                        if(close(outPipes.pipes[i] == -1)){
+                        if(close(outPipes.pipes[i][0] == -1)){
                             perror("close");
                             exit(EXIT_FAILURE);
                         }
@@ -196,6 +207,8 @@ int main(int argc, char argv[]) {
                         closedPipes[i] = 1;
                         closedPipesAmount++;
                     } else{
+                        printf("%s", buffer);
+                        for(int i=0; i < BUFFER_SIZE ;i++) buffer[i] = 0;
                         // Here we need to put the line read on the final file and the shared memory space
                         //after we implement the shared memory program
                     }
@@ -255,7 +268,7 @@ int main(int argc, char argv[]) {
 
         // No arguments left, now we need to close the pipes and free the heap
         for(int i=0; i < slavesAmount ;i++){
-            if(close(inPipes.pipes[i]) == ERROR){
+            if(close(inPipes.pipes[i][1]) == ERROR){
                 perror("Close");
                 exit(EXIT_FAILURE);
             }
