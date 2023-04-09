@@ -1,7 +1,7 @@
 # El flag -lm es para usar math.h y que calcule la cantidad de esclavos a utilizar
 
-gcc -Wall -Wpedantic -std=c99  slave.v -o slave
-gcc -Wall -Wpedantic -std=c99 -lm mainProcess.v -o mainProcess
+gcc -Wall -Wpedantic -std=c99  slave.c -o slave
+gcc -Wall -Wpedantic -std=c99 -lm mainProcess.c -o mainProcess
 
 # Comando para debuggear con valgrind
 # valgrind --trace-children=yes -v --track-origins=yes --leak-check=yes --xml-file="errors.xml" ./mainProcess <argumentos>
