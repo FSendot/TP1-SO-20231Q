@@ -12,6 +12,8 @@
 #define HASH_LENGTH 32
 #define PIPE_BUFF 512
 
+ssize_t getline(char **linePtr, size_t *n, FILE *stream);
+
 void launchMD5(char *path){
     // Pipe that will ne used for communicate with md5sum
     int pipefd[2];
@@ -56,7 +58,7 @@ void launchMD5(char *path){
     } else{
         close(pipefd[0]);
         perror("md5sum");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     return;
@@ -72,14 +74,16 @@ int main(int argc, char *argv[]){
     }
 
     // Initialize variables for getline()
-    char buffer[PIPE_BUFF] = {0};
-    ssize_t lineLen;
+    char *buffer;
+    size_t n = 0;
+    ssize_t lineLen = 0;
 
     // The linePointer will contain allocated memory on the programm, that has to be freed after using it
-    while((lineLen = read(STDIN, buffer, PIPE_BUFF)) > 0){
-        if(buffer[strlen(buffer)-1] == '\n' ) buffer[strlen(buffer)-1] = '\0';
+    while((lineLen = getline(&buffer, &n, stdin)) > 0){
+        for(int i=0; i < lineLen && i < n ;i++) buffer[i] = buffer[i] == '\n' ? '\0': buffer[i];
         launchMD5(buffer);
-        for(int i=0; buffer[i] != '\0' ;i++) buffer[i] = '\0';
+        free(buffer);
+        n = 0;
     }
 
     return 0;
