@@ -10,8 +10,7 @@
 #define ERROR -1
 
 #define HASH_LENGTH 32
-
-ssize_t getline(char **lineptr, size_t *n, FILE *stream);
+#define PIPE_BUFF 512
 
 void launchMD5(char *path){
     // Pipe that will ne used for communicate with md5sum
@@ -44,20 +43,22 @@ void launchMD5(char *path){
     close(pipefd[1]);
     wait(&status);
     
+    
     if(status == 0){
-        size_t pathlen = strlen(path);
-        char *buffer = malloc((HASH_LENGTH + pathlen + 3)*sizeof(char));
-        read(pipefd[0], buffer, HASH_LENGTH + pathlen + 3);
-        buffer[HASH_LENGTH+pathlen+2] = '\0';
-        printf("Process ID: %d | Hash Value and Filename: %s\n", getpid(), buffer);
-        
-        free(buffer);
+        char readBuffer[PIPE_BUFF] = {0};
+        read(pipefd[0], readBuffer, PIPE_BUFF);
+
         close(pipefd[0]);
+
+        char writeBuffer[PIPE_BUFF] = {0};
+        sprintf(writeBuffer, "Process ID: %d | Hash Value and Filename: %s", getpid(), readBuffer);
+        write(STDOUT, writeBuffer, PIPE_BUFF);
     } else{
         close(pipefd[0]);
         perror("md5sum");
         exit(1);
     }
+
     return;
 }
 
@@ -71,19 +72,14 @@ int main(int argc, char *argv[]){
     }
 
     // Initialize variables for getline()
-    char *linePointer = NULL;
-    size_t lineCap = 0;
+    char buffer[PIPE_BUFF] = {0};
     ssize_t lineLen;
 
     // The linePointer will contain allocated memory on the programm, that has to be freed after using it
-    while((lineLen = getline(&linePointer, &lineCap, stdin)) > 0){
-        linePointer[lineLen - 1] = '\0';
-
-        launchMD5(linePointer);
-
-        free(linePointer);
-        linePointer = NULL;
-        lineCap = 0;
+    while((lineLen = read(STDIN, buffer, PIPE_BUFF)) > 0){
+        if(buffer[strlen(buffer)-1] == '\n' ) buffer[strlen(buffer)-1] = '\0';
+        launchMD5(buffer);
+        for(int i=0; buffer[i] != '\0' ;i++) buffer[i] = '\0';
     }
 
     return 0;
