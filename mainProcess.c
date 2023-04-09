@@ -132,7 +132,7 @@ int main(int argc, char *argv[]) {
     // Now we can create a subprocess of the main program that can read all the data given by the slaves
     if((pid = fork()) == ERROR){
         perror("fork");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     if(pid == 0){
@@ -173,10 +173,9 @@ int main(int argc, char *argv[]) {
                 if(closedPipes[i] != 1)
                     FD_SET(outPipes.pipes[i][0], &readfd);
             }
-            printf("All fd set!\n");
 
             // Using pselect and unmasking the childs should let the program free of race conditions
-            if((fdAmount = select(ndfs, NULL, &readfd, NULL, NULL)) == ERROR){
+            if((fdAmount = select(ndfs, &readfd, NULL, NULL, NULL)) == ERROR){
                 perror("select");
                 exit(EXIT_FAILURE);
             }
@@ -184,15 +183,14 @@ int main(int argc, char *argv[]) {
             if(fdAmount == 0) continue;
 
             // For every process that is ready, we can write on it the next file that needs to be processed
-            printf("Reading slaves\n");
             for(int i=0; i < slavesAmount && fdAmount > 0 ;i++){
                 if(closedPipes[i] != 1 && FD_ISSET(outPipes.pipes[i][0], &readfd)){
                     charsRead = read(outPipes.pipes[i][0], buffer, PIPE_BUFF);
                     
                     // EOF reached on that pipe
                     if(charsRead == 0){
-                        if(close(outPipes.pipes[i][0] == ERROR)){
-                            perror("close");
+                        if(close(outPipes.pipes[i][0]) == ERROR){
+                            perror("close2");
                             exit(EXIT_FAILURE);
                         }
                         free(outPipes.pipes[i]);
@@ -235,7 +233,6 @@ int main(int argc, char *argv[]) {
         ndfs = inPipes.pipes[i][1] > ndfs ? inPipes.pipes[i][1] : ndfs;
     ndfs++;
 
-    printf("%d\n", argc);
     // We need to process the rest of the programs arguments
     while(argCount < argc){
         // Initialize the File Descriptor set for the use of select
@@ -243,9 +240,6 @@ int main(int argc, char *argv[]) {
         for(int i=0; i<slavesAmount ;i++){
             FD_SET(inPipes.pipes[i][1], &writefd);
         }
-
-        printf("%s\n", argv[argCount]);
-
 
         // Using pselect and unmasking the childs should let the program free of race conditions
         if((fdAmount = select(ndfs, NULL, &writefd, NULL, NULL)) == ERROR){
@@ -266,14 +260,13 @@ int main(int argc, char *argv[]) {
     // No arguments left, now we need to close the pipes and free the heap
     for(int i=0; i < slavesAmount ;i++){
         if(close(inPipes.pipes[i][1]) == ERROR){
-            perror("Close");
+            perror("close");
             exit(EXIT_FAILURE);
         }
         free(inPipes.pipes[i]);
     }
     free(inPipes.pipes);
 
-    printf("Waiting all childs\n");
     // Waits until ALL child processes finishes their tasks
     while(waitpid(-1, &status, 0) > 0);
     
