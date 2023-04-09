@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <math.h>
 
 #define STDIN 0
 #define STDOUT 1
@@ -38,13 +39,10 @@ int main(int argc, char *argv[]) {
 
     // If the program has less paths than the default slaves amount, it only creates the necesary amount of slaves
     
-    /* 
-    ** If we wanted to add complexity to the amount of slaves
-    ** created, the code below can support a variable amount
-    ** of slaves, thanks to the heap, we can calculate everything 
-    ** in real time.
-    */
-    int slavesAmount = (argc - 1) < INITIAL_SLAVES ? (argc - 1) : INITIAL_SLAVES;
+    /* Slaves are created in a log2 order of input, it reduces drastically 
+    ** the amount of processes created for each group of files
+    */ 
+    int slavesAmount = (int) log2((double) argc-1);
 
 
     inPipes.pipes = malloc(sizeof(int*)*slavesAmount);
@@ -198,7 +196,7 @@ int main(int argc, char *argv[]) {
                         closedPipesAmount++;
                     } else{
                         printf("%s", buffer);
-                        for(int i=0; buffer[i] != '\0' ;i++) buffer[i] = '0';
+                        for(int i=0; buffer[i] != '\0' ;i++) buffer[i] = '\0';
                         // Here we need to put the line read on the final file and the shared memory space
                         //after we implement the shared memory program
                     }
@@ -233,6 +231,7 @@ int main(int argc, char *argv[]) {
         ndfs = inPipes.pipes[i][1] > ndfs ? inPipes.pipes[i][1] : ndfs;
     ndfs++;
 
+    char writeBuff[PIPE_BUFF];
     // We need to process the rest of the programs arguments
     while(argCount < argc){
         // Initialize the File Descriptor set for the use of select
@@ -251,7 +250,8 @@ int main(int argc, char *argv[]) {
         // For every process that is ready, we can write on it the next file that needs to be processed
         for(int i=0; i < slavesAmount && argCount < argc;i++){
             if(FD_ISSET(inPipes.pipes[i][1], &writefd)){
-                write(inPipes.pipes[i][1], argv[argCount], PIPE_BUFF);
+                sprintf(writeBuff,"%s\n",argv[argCount]);
+                write(inPipes.pipes[i][1], writeBuff, strlen(writeBuff));
                 argCount++;
             }
         }
