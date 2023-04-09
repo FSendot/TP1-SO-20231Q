@@ -3,3 +3,5 @@ slave
 mainProcess
 mainProcess.o
 test.txt
+slave.o
+errors.xml
