@@ -78,5 +78,10 @@ void write_to_shared_memory(void* shm_ptr, char* buffer, size_t size) {
     sem_close(sem);
 }
 
-void unlink_shared_memory_resources() {
+void unlink_shared_memory_resources(void*shm_ptr, size_t shm_size) {
+    if(munmap(shm_ptr, shm_size)==-1){
+        perror("munmap");
+        exit(1);
+    }
+    shm_unlink(SHM_NAME);
 }

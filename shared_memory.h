@@ -8,4 +8,4 @@
 size_t create_shared_memory(size_t hashes_count);
 void* open_shared_memory(size_t shm_size);
 void write_to_shared_memory(void* shm_ptr, char* buffer, size_t size);
-void unlink_shared_memory_resources();
+void unlink_shared_memory_resources(void*shm_ptr, size_t shm_size);
