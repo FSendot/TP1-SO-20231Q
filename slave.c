@@ -5,8 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "shared_memory.h"
-
 #define STDIN 0
 #define STDOUT 1
 #define ERROR -1

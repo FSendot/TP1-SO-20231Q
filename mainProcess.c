@@ -80,7 +80,8 @@ int main(int argc, char *argv[]) {
     /*
         Antes de que se creen los esclavos, es MUY importante que se cree la zona de espacio compartida.
     */
-    void* shm_ptr = open_shared_memory(argc - 1, 0666);
+    // size_t size = open_shared_memory(argc - 1);
+    // printf("%d", size);
 
 
 
