@@ -67,7 +67,9 @@ void write_to_shared_memory(void* shm_ptr, char* buffer, size_t size) {
     */
     sem_wait(sem);  
     char* lastAppearance = strrchr(shm_ptr, SPLIT_TOKEN);
-    lastAppearance++;
+    if(lastAppearance == NULL){
+        lastAppearance = (char*)shm_ptr;
+    } else { lastAppearance++; }
     strcpy(lastAppearance, buffer);
     *(lastAppearance + size) = '&';
     sem_post(sem);
