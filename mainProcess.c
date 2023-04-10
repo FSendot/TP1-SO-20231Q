@@ -54,6 +54,10 @@ int main(int argc, char *argv[]) {
     */ 
     int slavesAmount = (int) log2((double) argc-1);
 
+    /* If we receive only 1 argument -> log2(1) = 0, so we need to increment slavesAmount 
+    **for the program to have at least 1 slave
+    */
+    if(slavesAmount < 1) slavesAmount++;
 
     inPipes.pipes = malloc(sizeof(int*)*slavesAmount);
     outPipes.pipes = malloc(sizeof(int*)*slavesAmount);
