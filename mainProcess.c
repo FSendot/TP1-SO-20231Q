@@ -32,41 +32,6 @@ typedef struct pipeGroup{
 
 
 
-void* open_shared_memory(size_t hashes_count, int prot) {
-    //For every hash, a token will be added.
-    size_t shm_size = 16 * (hashes_count + 1);
-
-    //A new shared memory object initially has zero length--the size of the object.
-    int shm_fd = shm_open(SHM_NAME, O_RDWR | O_CREAT, 0666);
-    if (shm_fd == -1) {
-        perror("shm_open");
-        exit(1);
-    }
-    
-    //Cause the regular file named by path or referenced by fd to be truncated to a size of precisely length bytes.
-    if (ftruncate(shm_fd, shm_size) == -1) {
-        perror("ftruncate");
-        exit(1);
-    }
-
-    void* shm_ptr = mmap(NULL, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-    if (shm_ptr == MAP_FAILED) {
-        perror("mmap");
-        exit(1);
-    }
-
-    return shm_ptr;
-}
-
-void* write_to_shared_memory(void* shm_ptr, char* buffer) {
-
-    //sem_t *sem_open(const char *name, int oflag, mode_t mode, unsigned int value);
-
-
-
-}
-
-
 int main(int argc, char *argv[]) {
     // argsv[] = {"./mainProcess", "./archivo1", "./archivo2"} 
     // argc = mainPath + #arguments
@@ -111,6 +76,13 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
         }
     }
+
+    /*
+        Antes de que se creen los esclavos, es MUY importante que se cree la zona de espacio compartida.
+    */
+    void* shm_ptr = open_shared_memory(argc - 1, 0666);
+
+
 
     pid_t pid;
     for (int i = 0; i < slavesAmount; i++) {
