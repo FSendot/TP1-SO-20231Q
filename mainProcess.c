@@ -60,7 +60,7 @@ void* open_shared_memory(size_t hashes_count, int prot) {
 
 void* write_to_shared_memory(void* shm_ptr, char* buffer) {
 
-    sem_t *sem_open(const char *name, int oflag, mode_t mode, unsigned int value);
+    //sem_t *sem_open(const char *name, int oflag, mode_t mode, unsigned int value);
 
 
 
