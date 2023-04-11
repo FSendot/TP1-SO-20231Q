@@ -20,14 +20,14 @@ void launchMD5(char *path){
 
     if(pipe(pipefd) == ERROR){
         perror("pipe");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     pid_t pid;
     int status;
 
     if((pid = fork()) == ERROR){
             perror("fork");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     if(pid == 0){
         dup2(pipefd[1], STDOUT);
@@ -54,37 +54,40 @@ void launchMD5(char *path){
 
         char writeBuffer[PIPE_BUFF] = {0};
         sprintf(writeBuffer, "Process ID: %d | Hash Value and Filename: %s", getpid(), readBuffer);
-        write(STDOUT, writeBuffer, PIPE_BUFF);
+        write(STDOUT, writeBuffer, strlen(writeBuffer));
     } else{
         close(pipefd[0]);
         perror("md5sum");
         exit(EXIT_FAILURE);
     }
-
-    return;
 }
 
 int main(int argc, char *argv[]){
     //If slave receives arguments
     if(argc > 1){
-        for(int i=1; i<argc ;i++){
+        for(int i=1; i < argc ;i++){
             launchMD5(argv[i]);
         }
-        return 0;
+        return EXIT_SUCCESS;
     }
 
     // Initialize variables for getline()
-    char *buffer;
+    char *buffer = NULL;
     size_t n = 0;
     ssize_t lineLen = 0;
 
     // The linePointer will contain allocated memory on the programm, that has to be freed after using it
     while((lineLen = getline(&buffer, &n, stdin)) > 0){
-        for(int i=0; i < lineLen && i < n ;i++) buffer[i] = buffer[i] == '\n' ? '\0': buffer[i];
+        // We need to get rid of the '\n' character for md5sum
+        buffer[lineLen-1] = buffer[lineLen-1] == '\n' ? '\0': buffer[lineLen-1];
         launchMD5(buffer);
         free(buffer);
+        buffer = NULL;
         n = 0;
     }
+    // Last check if getline failed for any reason and couldn't free the memory alloc of the buffer
+    if(buffer != NULL)
+        free(buffer);
 
-    return 0;
+    return EXIT_SUCCESS;
 }
