@@ -20,8 +20,6 @@
 #define STDOUT 1
 #define ERROR -1
 
-#define MAX_PER_SLAVE 2
-#define INITIAL_SLAVES 2
 #define PIPE_BUFF 512
 
 // Data structure useful for creating a group of pipes used by the main process
@@ -53,11 +51,15 @@ int main(int argc, char *argv[]) {
     ** the amount of processes created for each group of files
     */ 
     int slavesAmount = (int) log2((double) argc-1);
+    int initialPaths = slavesAmount / 2;
 
     /* If we receive only 1 argument -> log2(1) = 0, so we need to increment slavesAmount 
     **for the program to have at least 1 slave
     */
-    if(slavesAmount < 1) slavesAmount++;
+    if(slavesAmount < 1){
+        slavesAmount++;
+        initialPaths++;
+    }
 
     inPipes.pipes = malloc(sizeof(int*)*slavesAmount);
     outPipes.pipes = malloc(sizeof(int*)*slavesAmount);
@@ -145,9 +147,12 @@ int main(int argc, char *argv[]) {
     }
 
     // Now we have to distribute evenly all the initial paths that the slaves have to process
-    for(int i=0; i<MAX_PER_SLAVE && argCount < argc ; i++)
-        for(int j=0; j<slavesAmount && argCount < argc; j++, argCount++)
-            write(inPipes.pipes[j][1], argv[argCount], PIPE_BUFF);
+    char writeBuff[PIPE_BUFF];
+    for(int i=0; i<initialPaths && argCount < argc ; i++)
+        for(int j=0; j<slavesAmount && argCount < argc; j++, argCount++){
+            sprintf(writeBuff, "%s\n", argv[argCount]);
+            write(inPipes.pipes[j][1], writeBuff, strlen(writeBuff));
+        }
 
     // Now we can create a subprocess of the main program that can read all the data given by the slaves
     if((pid = fork()) == ERROR){
@@ -256,7 +261,6 @@ int main(int argc, char *argv[]) {
         ndfs = inPipes.pipes[i][1] > ndfs ? inPipes.pipes[i][1] : ndfs;
     ndfs++;
 
-    char writeBuff[PIPE_BUFF];
     // We need to process the rest of the programs arguments
     while(argCount < argc){
         // Initialize the File Descriptor set for the use of select
