@@ -76,7 +76,10 @@ void write_to_shared_memory(void* shm_ptr, char* buffer, size_t size) {
         lastAppearance++; 
     }
     strcpy(lastAppearance, buffer);
-    *(lastAppearance + size) = '&';
+    *(lastAppearance + size) = SPLIT_TOKEN;
+
+    // printf("%s\n", (char*) shm_ptr);
+
     sem_post(sem);
     sem_post(hashesUnread);
 }

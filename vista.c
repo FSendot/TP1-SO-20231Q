@@ -43,14 +43,8 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         sem_wait(sem_reader);
-        if (*shm_ptr ==  SPLIT_TOKEN) {
-            putchar('\n');
-        } else if (*shm_ptr == 0x0) {
-            putchar('\0');
-            return 0;
-        }
-        putchar(*shm_ptr);
-        shm_ptr++;
+        printf("%s\n", shm_ptr);
+        shm_ptr = shm_ptr + strlen(shm_ptr) + 1;
         // sem_post(sem_reader); No se debe realizar acá. Lo hace el shm_impl cuando escribe un nuevo hash.
     }
 

@@ -9,7 +9,7 @@
 #define SHM__READ_SEM "/SO-READ-SEM"
 
 
-#define SPLIT_TOKEN '&'
+#define SPLIT_TOKEN '\0'
 #define ERROR -1
 // #define SHM_SIZE 1048576    // 1MB - Se calcula directo en el main process.
 
