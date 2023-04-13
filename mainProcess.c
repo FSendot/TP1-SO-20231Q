@@ -86,8 +86,8 @@ int main(int argc, char *argv[]) {
     /*
         Antes de que se creen los esclavos, es MUY importante que se cree la zona de espacio compartida.
     */
-    // size_t size = open_shared_memory(argc - 1);
-    // printf("%d", size);
+    size_t size = initialize_shared_memory((argc-1)*17);
+    printf("%lu\n", size);
 
 
 
@@ -222,7 +222,7 @@ int main(int argc, char *argv[]) {
                         closedPipes[i] = 1;
                         closedPipesAmount++;
                     } else{
-                        printf("%s", buffer);
+                        // printf("%s", buffer);
                         for(int i=0; buffer[i] != '\0' ;i++) buffer[i] = '\0';
                         // Here we need to put the line read on the final file and the shared memory space
                         //after we implement the shared memory program
