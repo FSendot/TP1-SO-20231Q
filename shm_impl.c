@@ -38,6 +38,14 @@ int initialize_shared_memory(size_t shm_size) {
         exit(1);
     }
 
+    //FIXME 
+    void* shm_ptr = mmap(NULL, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (shm_ptr == MAP_FAILED) {
+        perror("mmap");
+        exit(1);
+    }
+    *((char*) shm_ptr) = INITIAL_TOKEN;
+
     return shm_fd;
 }
 
@@ -58,7 +66,7 @@ void* open_shared_memory(size_t shm_size) {
     return shm_ptr;
 }
 
-
+//FIXME, eliminar parametro size
 void write_to_shared_memory(void* shm_ptr, char* buffer, size_t size) {
     sem_t* sem = sem_open(SHM_WRITE_SEM, O_CREAT, 0666, 1);
     sem_t* hashesUnread = sem_open(SHM__READ_SEM, O_CREAT, 0666, 0);
@@ -69,14 +77,16 @@ void write_to_shared_memory(void* shm_ptr, char* buffer, size_t size) {
         a escribir a la posición proxima a escribir.
     */
     sem_wait(sem);  
-    char* lastAppearance = strrchr(shm_ptr, SPLIT_TOKEN);
-    if(lastAppearance == NULL){
-        lastAppearance = (char*)shm_ptr;
-    } else { 
+    //FIXME
+    if (shm_ptr == INITIAL_TOKEN) {
+        strcpy(shm_ptr, buffer);
+    } else {
+        char* lastAppearance = strrchr(shm_ptr, SPLIT_TOKEN);
         lastAppearance++; 
+        strcpy(lastAppearance, buffer);
+
+        // *(lastAppearance + strlen(buffer) + 1) = SPLIT_TOKEN;
     }
-    strcpy(lastAppearance, buffer);
-    *(lastAppearance + size) = SPLIT_TOKEN;
 
     // printf("%s\n", (char*) shm_ptr);
 

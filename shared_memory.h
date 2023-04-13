@@ -10,6 +10,7 @@
 
 
 #define SPLIT_TOKEN '\0'
+#define INITIAL_TOKEN '&' 
 #define ERROR -1
 // #define SHM_SIZE 1048576    // 1MB - Se calcula directo en el main process.
 
