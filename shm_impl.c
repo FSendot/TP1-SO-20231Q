@@ -21,8 +21,8 @@ int initialize_shared_memory(size_t shm_size) {
        Access to read the hashes stored in shared memory needs a semaphore because the reader
        has to know if there are new hashes or block.
     */
-    sem_t* sem = sem_open(SHM_WRITE_SEM, O_CREAT, 0666, 1);
-    sem_t* hashesUnread = sem_open(SHM__READ_SEM, O_CREAT, 0666, 0);
+    sem_open(SHM_WRITE_SEM, O_RDWR | O_CREAT, 0666, 1);
+    sem_open(SHM__READ_SEM, O_RDWR | O_CREAT, 0666, 0);
 
 
     //A new shared memory object initially has zero length--the size of the object.
@@ -44,13 +44,15 @@ int initialize_shared_memory(size_t shm_size) {
         perror("mmap");
         exit(1);
     }
+
     *((char*) shm_ptr) = INITIAL_TOKEN;
+    for (int i = 1; i < shm_size; i++) *(char*)shm_ptr = '\0';
 
     return shm_fd;
 }
 
 void* open_shared_memory(size_t shm_size) {
-    int shm_fd = shm_open(SHM_NAME, O_RDWR | O_CREAT, 0666);
+    int shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
     if (shm_fd == -1) {
         perror("shm_open");
         exit(1);
@@ -68,30 +70,30 @@ void* open_shared_memory(size_t shm_size) {
 
 //FIXME, eliminar parametro size
 void write_to_shared_memory(void* shm_ptr, char* buffer, size_t size) {
-    sem_t* sem = sem_open(SHM_WRITE_SEM, O_CREAT, 0666, 1);
-    sem_t* hashesUnread = sem_open(SHM__READ_SEM, O_CREAT, 0666, 0);
+    sem_t* sem = sem_open(SHM_WRITE_SEM, O_RDWR | O_CREAT, 0666, 1);
+    sem_t* hashesUnread = sem_open(SHM__READ_SEM, O_RDWR | O_CREAT, 0666, 0);
 
     /*
         //FIXME
         Se podría mejorar, teniendo un contador de cuantos hashes ya se guardaron, e ir directo
         a escribir a la posición proxima a escribir.
     */
+
+    printf("wait(sem)\n");
     sem_wait(sem);  
     //FIXME
-    if (shm_ptr == INITIAL_TOKEN) {
+    if (*((char*)shm_ptr) == INITIAL_TOKEN) {
         strcpy(shm_ptr, buffer);
     } else {
         char* lastAppearance = strrchr(shm_ptr, SPLIT_TOKEN);
         lastAppearance++; 
-        strcpy(lastAppearance, buffer);
-
-        // *(lastAppearance + strlen(buffer) + 1) = SPLIT_TOKEN;
+        memcpy(lastAppearance, buffer, size);
     }
 
-    // printf("%s\n", (char*) shm_ptr);
-
     sem_post(sem);
+    printf("post(sem)\n");
     sem_post(hashesUnread);
+    printf("post(hashesunread)\n");
 }
 
 void unlink_shared_memory_resources(void*shm_ptr, size_t shm_size) {
@@ -106,4 +108,17 @@ void unlink_shared_memory_resources(void*shm_ptr, size_t shm_size) {
         perror("shm_unlink");
         exit(1);
     }
+}
+
+/*
+    Función super auxiliar.
+*/
+void show_shared_memory(void* shm_ptr, size_t shm_size) {
+    printf("Comenzando a imprimir la shared memory.\n");
+    int i = 0;
+    while (i < shm_size) {
+        printf("%c", (char) *((char*)shm_ptr + i));
+        i++;
+    }
+    printf("Finalizado.\n");
 }

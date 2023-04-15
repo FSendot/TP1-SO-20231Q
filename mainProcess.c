@@ -21,6 +21,7 @@
 #define ERROR -1
 
 #define PIPE_BUFF 512
+#define SLAVE_HASH_OUTPUT 106 //Counts it as a string.
 
 // Data structure useful for creating a group of pipes used by the main process
 typedef struct pipeGroup{
@@ -83,12 +84,12 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    /*
-        Antes de que se creen los esclavos, es MUY importante que se cree la zona de espacio compartida.
-    */
-    size_t shm_size = initialize_shared_memory((argc-1)*17);
-    printf("%lu\n", shm_size);
 
+        /*
+            La vista esperará el output, que recién en este momento se hace.
+        */
+        size_t shm_size = initialize_shared_memory((argc-1) * SLAVE_HASH_OUTPUT + 1024);
+        printf("%lu\n", shm_size);
 
 
     pid_t pid;
@@ -160,9 +161,10 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
+    
     if(pid == 0){
         // We don't need the writing pipes if we are in this process
-        for(int i=0; i<slavesAmount ;i++){
+        for(int i=0; i<slavesAmount; i++){
             if(close(inPipes.pipes[i][1]) == ERROR){
                 perror("close");
                 exit(EXIT_FAILURE);
@@ -207,6 +209,8 @@ int main(int argc, char *argv[]) {
             // No slave processes free, should never happen because we're not using a timeout condition
             if(fdAmount == 0) continue;
 
+            void* shm_ptr = open_shared_memory(shm_size);
+
             // For every process that is ready, we can write on it the next file that needs to be processed
             for(int i=0; i < slavesAmount && fdAmount > 0 ;i++){
                 if(closedPipes[i] != 1 && FD_ISSET(outPipes.pipes[i][0], &readfd)){
@@ -222,9 +226,13 @@ int main(int argc, char *argv[]) {
                         closedPipes[i] = 1;
                         closedPipesAmount++;
                     } else{
-                        void* shm_ptr = open_shared_memory(shm_size);
-
-                        write_to_shared_memory(shm_ptr, buffer, strlen(buffer));
+//                        printf("->%s<-\n", buffer);
+                        
+                        int length = strlen(buffer);
+                        buffer[length] = SPLIT_TOKEN;
+                        write_to_shared_memory(shm_ptr, buffer, length);
+                    
+                        
                         for(int i=0; buffer[i] != '\0' ;i++) buffer[i] = '\0';
                         // Here we need to put the line read on the final file and the shared memory space
                         //after we implement the shared memory program                    
@@ -280,9 +288,12 @@ int main(int argc, char *argv[]) {
         for(int i=0; i < slavesAmount && argCount < argc;i++){
             if(FD_ISSET(inPipes.pipes[i][1], &writefd)){
                 sprintf(writeBuff,"%s\n",argv[argCount]);
+                
                 write(inPipes.pipes[i][1], writeBuff, strlen(writeBuff));
+
                 argCount++;
-            }
+            }    
+            
         }
     }
 

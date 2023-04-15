@@ -16,6 +16,9 @@
 #define STDIN 0
 #define BUFFER_SIZE 512
 
+
+
+
 int main(int argc, char *argv[]) {
     int shm_size = 0;
     
@@ -35,46 +38,24 @@ int main(int argc, char *argv[]) {
         free(shm_size_str);
     }
 
-    sem_t* sem_reader = sem_open(SHM__READ_SEM, 0);
+    sem_t* sem_reader = sem_open(SHM__READ_SEM, O_CREAT, 1);
     char* shm_ptr = (char*) open_shared_memory(shm_size);
-
-    // Hasta acá ya está chequeado que funciona.
     
-    size_t len = 0;
-    char* shm_line;
-
-    while(1){
+    while(1) {
         sem_wait(sem_reader);
-        printf("despues de sem wait\n");
-    
-        char* read_ptr = (char*) (shm_ptr) + len;
-
-        len = strcspn(read_ptr, "&");
-        printf("len: %lu\n", len);
-
-        //este malloc lo vamos a poder hacer fijo por el tamano del buffer
-        shm_line = malloc(len+1);
-        if(shm_line == NULL){
-            perror("malloc");
-            exit(1);
+        
+        char* read_ptr = (char*)shm_ptr;
+        while (*read_ptr != SPLIT_TOKEN) {
+            putchar(*read_ptr);
+            read_ptr++;
         }
-
-        strncpy(shm_line, read_ptr, len+1);
-        shm_line[len] = '\0'; //me hace segmentation fault
-
-        printf("shm_line: %s \n", shm_line);
-
-        len++;
-        shm_ptr = read_ptr + len;
-
-        free(shm_line);
+        putchar('\n');
     }
-
+    
 
     return 0;
 }
-
-
+    // Hasta acá ya está chequeado que funciona.
 /*
     sem_t* sem_reader = sem_open(SHM__READ_SEM, 0);
 

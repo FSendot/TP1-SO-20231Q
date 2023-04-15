@@ -9,7 +9,6 @@
 #define STDOUT 1
 #define ERROR -1
 
-#define HASH_LENGTH 32
 #define PIPE_BUFF 512
 
 ssize_t getline(char **linePtr, size_t *n, FILE *stream);
@@ -48,13 +47,16 @@ void launchMD5(char *path){
     
     if(status == 0){
         char readBuffer[PIPE_BUFF] = {0};
+
         read(pipefd[0], readBuffer, PIPE_BUFF);
 
         close(pipefd[0]);
 
         char writeBuffer[PIPE_BUFF] = {0};
         sprintf(writeBuffer, "Process ID: %d | Hash Value and Filename: %s", getpid(), readBuffer);
+        writeBuffer[strlen(writeBuffer)-1] = '\0'; // Elimino el enter final que agrega md5sum al hash.
         write(STDOUT, writeBuffer, strlen(writeBuffer));
+    
     } else{
         close(pipefd[0]);
         perror("md5sum");
@@ -63,6 +65,8 @@ void launchMD5(char *path){
 }
 
 int main(int argc, char *argv[]){
+    setvbuf(stdout, NULL, _IONBF, 0);
+
     //If slave receives arguments
     if(argc > 1){
         for(int i=1; i < argc ;i++){
