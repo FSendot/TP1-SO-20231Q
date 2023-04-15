@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
         free(shm_size_str);
     }
 
-    sleep(1);
+   // sleep(1);
     shared_memory_ADT shm = open_shared_memory(shm_size);
 
     char *buffer = NULL;
