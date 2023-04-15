@@ -84,14 +84,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-
-        /*
-            La vista esperará el output, que recién en este momento se hace.
-        */
-        size_t shm_size = initialize_shared_memory((argc-1) * SLAVE_HASH_OUTPUT + 1024);
-        printf("%lu\n", shm_size);
-
-
     pid_t pid;
     for (int i = 0; i < slavesAmount; i++) {
         if((pid = fork()) == ERROR){
@@ -163,6 +155,13 @@ int main(int argc, char *argv[]) {
 
     
     if(pid == 0){
+        /*
+        La vista esperará el output, que recién en este momento se hace.
+        */
+        size_t shared_memory_size = (argc-1) * SLAVE_HASH_OUTPUT + 1024;
+        printf("%lu\n", shared_memory_size);
+        shared_memory_ADT shm = initialize_shared_memory(shared_memory_size);
+
         // We don't need the writing pipes if we are in this process
         for(int i=0; i<slavesAmount; i++){
             if(close(inPipes.pipes[i][1]) == ERROR){
@@ -209,7 +208,6 @@ int main(int argc, char *argv[]) {
             // No slave processes free, should never happen because we're not using a timeout condition
             if(fdAmount == 0) continue;
 
-            void* shm_ptr = open_shared_memory(shm_size);
 
             // For every process that is ready, we can write on it the next file that needs to be processed
             for(int i=0; i < slavesAmount && fdAmount > 0 ;i++){
@@ -226,12 +224,9 @@ int main(int argc, char *argv[]) {
                         closedPipes[i] = 1;
                         closedPipesAmount++;
                     } else{
-//                        printf("->%s<-\n", buffer);
-                        
                         int length = strlen(buffer);
                         buffer[length] = SPLIT_TOKEN;
-                        write_to_shared_memory(shm_ptr, buffer, length);
-                    
+                        write_to_shared_memory(shm, buffer, length);
                         
                         for(int i=0; buffer[i] != '\0' ;i++) buffer[i] = '\0';
                         // Here we need to put the line read on the final file and the shared memory space
@@ -246,6 +241,8 @@ int main(int argc, char *argv[]) {
         // Every pipe is closed, now we need to free the remaining memory spaces and finish this process
         free(outPipes.pipes);
         free(closedPipes);
+
+        unlink_shared_memory_resources(shm);
 
         return EXIT_SUCCESS;
     }

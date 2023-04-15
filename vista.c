@@ -17,7 +17,7 @@
 #define BUFFER_SIZE 512
 
 
-
+ssize_t getline(char **linePtr, size_t *n, FILE *stream);
 
 int main(int argc, char *argv[]) {
     int shm_size = 0;
@@ -25,18 +25,18 @@ int main(int argc, char *argv[]) {
     if (argc > 1) {
         shm_size = atoi(argv[1]);
     } else {
-        char* shm_size_str = malloc(sizeof(char) * BUFFER_SIZE);
-
-        while(read(STDIN, shm_size_str, BUFFER_SIZE) > 0);
-        int str_len = strlen(shm_size_str);
-        if (shm_size_str[str_len-1] == '\n') {
-                shm_size_str[str_len-1] = '\0';   //Because, from STDIN, the number comes styled like 512\n\0
+        char *shm_size_str = NULL;
+        size_t n = 0;
+        ssize_t lineLen = getline(&shm_size_str, &n, stdin);
+        if (shm_size_str[lineLen-1] == '\n') {
+                shm_size_str[lineLen-1] = '\0';   //Because, from STDIN, the number comes styled like 511\n\0
                 shm_size = atoi(shm_size_str);    
         }
         shm_size = atoi(shm_size_str);
 
         free(shm_size_str);
     }
+
 
     sem_t* sem_reader = sem_open(SHM__READ_SEM, O_CREAT, 1);
     char* shm_ptr = (char*) open_shared_memory(shm_size);
