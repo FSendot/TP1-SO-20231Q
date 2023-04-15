@@ -82,12 +82,17 @@ shared_memory_ADT open_shared_memory(size_t shm_size) {
         return NULL;
     
     shared_memory_ADT shm = malloc(sizeof(shared_memory_CDT));
+    printf("estoy por hacer el open\n");
+    //se esta haciendo mal este open y devuelve -1 
     int shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
+    printf("hice el open, fd_shm: %d\n", shm_fd);
     
     if (shm_fd == ERROR) {
         perror("shm_open");
         exit(EXIT_FAILURE);
     }
+    
+
     shm->shm_size = shm_size;
     if((shm->hashes_unread = sem_open(SHM__READ_SEM, O_CREAT, 0)) == SEM_FAILED){
         perror("sem_open");
@@ -122,11 +127,13 @@ void write_to_shared_memory(shared_memory_ADT shm, char* buffer, size_t size) {
     }
 
     if (*((char*)shm->shm_ptr) == INITIAL_TOKEN) {
-        strcpy(shm->shm_ptr, buffer);
+        strcpy((char*)shm->shm_ptr, buffer);
+        ((char*)(shm->shm_ptr))[strlen(buffer)] = SPLIT_TOKEN;
     } else {
-        char* lastAppearance = strrchr(shm->shm_ptr, SPLIT_TOKEN);
+        char* lastAppearance = strrchr((char*)(shm->shm_ptr), SPLIT_TOKEN);
         lastAppearance++; 
         strcpy(lastAppearance, buffer);
+        lastAppearance[strlen(buffer)] = SPLIT_TOKEN;
     }
 
     if(sem_post(shm->mutex_ptr) == ERROR){
@@ -146,14 +153,20 @@ char *read_shared_memory(shared_memory_ADT shm){
         perror("sem_wait");
         exit(EXIT_FAILURE);
     }
-    char *shm_ptr = (char *)shm->shm_ptr;
+
+    char *shm_ptr = (char *)(shm->shm_ptr);
+    printf("inicializando: shm_ptr: %c\n", shm_ptr[0]);
+     printf("el posta: %c\n", ((char*)(shm->shm_ptr))[0]);
     int i=0;
+
+
     while(shm_ptr[i] != SPLIT_TOKEN || shm_ptr[i] != END_TOKEN){
         toReturn[size++] = shm_ptr[i];
         if(size % BLOCK == 0) toReturn = realloc(toReturn, size + BLOCK);
         i++;
     }
     if(shm_ptr[i] == END_TOKEN){
+        printf("pasa esto: %s\n", toReturn);
         free(toReturn);
         return NULL;
     }

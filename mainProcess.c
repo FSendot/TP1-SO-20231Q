@@ -246,7 +246,8 @@ int main(int argc, char *argv[]) {
         // We notify to the shared memory that we finished writing in it
         strcpy(buffer, "$");
         write_to_shared_memory(shm, buffer, strlen(buffer));
-
+        printf("write_to_shared_memory post writing: %s\n", (char*)(shm->shm_ptr));
+        sleep(15);
         unlink_shared_memory_resources(shm);
 
         return EXIT_SUCCESS;

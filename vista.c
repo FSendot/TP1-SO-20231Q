@@ -20,6 +20,8 @@
 ssize_t getline(char **linePtr, size_t *n, FILE *stream);
 
 int main(int argc, char *argv[]) {
+
+
     int shm_size = 0;
     
     if (argc > 1) {
@@ -37,10 +39,13 @@ int main(int argc, char *argv[]) {
         free(shm_size_str);
     }
 
+    sleep(1);
     shared_memory_ADT shm = open_shared_memory(shm_size);
+
     char *buffer = NULL;
 
     while((buffer = read_shared_memory(shm)) != NULL) {
+        printf("buffer: %s", buffer);
         printf("%s", buffer);
         free(buffer);
         buffer = NULL;
