@@ -159,8 +159,9 @@ int main(int argc, char *argv[]) {
         La vista esperará el output, que recién en este momento se hace.
         */
         size_t shared_memory_size = (argc-1) * SLAVE_HASH_OUTPUT + 1024;
-        printf("%lu\n", shared_memory_size);
         shared_memory_ADT shm = initialize_shared_memory(shared_memory_size);
+        printf("%lu\n", shared_memory_size);
+
 
         // We don't need the writing pipes if we are in this process
         for(int i=0; i<slavesAmount; i++){
@@ -241,6 +242,10 @@ int main(int argc, char *argv[]) {
         // Every pipe is closed, now we need to free the remaining memory spaces and finish this process
         free(outPipes.pipes);
         free(closedPipes);
+
+        // We notify to the shared memory that we finished writing in it
+        strcpy(buffer, "$");
+        write_to_shared_memory(shm, buffer, strlen(buffer));
 
         unlink_shared_memory_resources(shm);
 

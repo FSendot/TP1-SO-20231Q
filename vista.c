@@ -37,23 +37,17 @@ int main(int argc, char *argv[]) {
         free(shm_size_str);
     }
 
+    shared_memory_ADT shm = open_shared_memory(shm_size);
+    char *buffer = NULL;
 
-    sem_t* sem_reader = sem_open(SHM__READ_SEM, O_CREAT, 1);
-    char* shm_ptr = (char*) open_shared_memory(shm_size);
-    
-    while(1) {
-        sem_wait(sem_reader);
-        
-        char* read_ptr = (char*)shm_ptr;
-        while (*read_ptr != SPLIT_TOKEN) {
-            putchar(*read_ptr);
-            read_ptr++;
-        }
-        putchar('\n');
+    while((buffer = read_shared_memory(shm)) != NULL) {
+        printf("%s", buffer);
+        free(buffer);
+        buffer = NULL;
     }
     
-
-    return 0;
+    unlink_shared_memory_resources(shm);
+    return EXIT_SUCCESS;
 }
     // Hasta acá ya está chequeado que funciona.
 /*

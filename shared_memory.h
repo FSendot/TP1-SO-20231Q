@@ -2,13 +2,13 @@
 
 
 #define SPLIT_TOKEN '\n'
-#define INITIAL_TOKEN '&' 
+#define INITIAL_TOKEN '&'
+#define END_TOKEN '$'
 #define ERROR -1
 // #define SHM_SIZE 1048576    // 1MB - Se calcula directo en el main process.
 
 
-// Se usa para saber cuantos hashes sin leer hay en la memoria compartida. : main_process <-> vista
-#define SHM__READ_SEM "/SO-READ-SEM"
+
 
 typedef struct shared_memory_CDT *shared_memory_ADT;
 
@@ -20,9 +20,10 @@ shared_memory_ADT initialize_shared_memory(size_t shm_size);
 /*
     Abre la shared memory, ya debidamente inicializada, y la mapea(dandole el tamaño) al proceso actual.
 */
-void* open_shared_memory(size_t shm_size);
+shared_memory_ADT open_shared_memory(size_t shm_size);
 
 void write_to_shared_memory(shared_memory_ADT shm, char* buffer, size_t size);
+char *read_shared_memory(shared_memory_ADT shm);
 void unlink_shared_memory_resources(shared_memory_ADT shm);
 
 

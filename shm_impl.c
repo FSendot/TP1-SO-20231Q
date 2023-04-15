@@ -17,12 +17,15 @@
 
 #define ERROR -1
 
-#define SHM_NAME "/SO-SHM"
+// Se usa para saber cuantos hashes sin leer hay en la memoria compartida. : main_process <-> vista
+#define SHM__READ_SEM "/SO-READ-SEM"
+
+#define SHM_NAME "/SO-SHARED_MEMORY"
 
 // Se usa al escribir sobre la memoria compartida.
 #define SHM_WRITE_SEM "/SO-WRITE-SEM"   
 
-
+#define BLOCK 64
 
 typedef struct shared_memory_CDT{
     void *shm_ptr;
@@ -52,7 +55,7 @@ shared_memory_ADT initialize_shared_memory(size_t shm_size) {
     //A new shared memory object initially has zero length--the size of the object.
     int shm_fd = shm_open(SHM_NAME, O_RDWR | O_CREAT, 0666);
     if (shm_fd == ERROR) {
-        perror("shm_open");
+        perror("shm_openlalal");
         exit(EXIT_FAILURE);
     }
     
@@ -74,21 +77,35 @@ shared_memory_ADT initialize_shared_memory(size_t shm_size) {
     return shm;
 }
 
-void* open_shared_memory(size_t shm_size) {
+shared_memory_ADT open_shared_memory(size_t shm_size) {
+    if(shm_size < 1)
+        return NULL;
+    
+    shared_memory_ADT shm = malloc(sizeof(shared_memory_CDT));
     int shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
+    
     if (shm_fd == ERROR) {
         perror("shm_open");
         exit(EXIT_FAILURE);
     }
+    shm->shm_size = shm_size;
+    if((shm->hashes_unread = sem_open(SHM__READ_SEM, O_CREAT, 0)) == SEM_FAILED){
+        perror("sem_open");
+        exit(EXIT_FAILURE);
+    }
+    if((shm->mutex_ptr = sem_open(SHM__READ_SEM, O_CREAT, 0)) == SEM_FAILED){
+        perror("sem_open");
+        exit(EXIT_FAILURE);
+    }
 
-    void* shm_ptr = mmap(NULL, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-    if (shm_ptr == MAP_FAILED) {
+    shm->shm_ptr = mmap(NULL, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+
+    if (shm->shm_ptr == MAP_FAILED) {
         perror("mmap");
         exit(EXIT_FAILURE);
     }
-    
 
-    return shm_ptr;
+    return shm;
 }
 
 //FIXME, eliminar parametro size
@@ -99,20 +116,17 @@ void write_to_shared_memory(shared_memory_ADT shm, char* buffer, size_t size) {
         a escribir a la posición proxima a escribir.
     */
 
-    printf("hola\n");
     if(sem_wait(shm->mutex_ptr) == ERROR){
         perror("sem_wait");
         exit(EXIT_FAILURE);
     }
-    //FIXME
-    void *shm_ptr = shm->shm_ptr;
 
-    if (*((char*)shm_ptr) == INITIAL_TOKEN) {
-        strcpy(shm_ptr, buffer);
+    if (*((char*)shm->shm_ptr) == INITIAL_TOKEN) {
+        strcpy(shm->shm_ptr, buffer);
     } else {
-        char* lastAppearance = strrchr(shm_ptr, SPLIT_TOKEN);
+        char* lastAppearance = strrchr(shm->shm_ptr, SPLIT_TOKEN);
         lastAppearance++; 
-        memcpy(lastAppearance, buffer, size);
+        strcpy(lastAppearance, buffer);
     }
 
     if(sem_post(shm->mutex_ptr) == ERROR){
@@ -123,6 +137,31 @@ void write_to_shared_memory(shared_memory_ADT shm, char* buffer, size_t size) {
         perror("sem_post");
         exit(EXIT_FAILURE);
     }
+}
+
+char *read_shared_memory(shared_memory_ADT shm){
+    size_t size = 0;
+    char *toReturn = malloc(sizeof(char)*BLOCK);
+    if(sem_wait(shm->hashes_unread) == ERROR){
+        perror("sem_wait");
+        exit(EXIT_FAILURE);
+    }
+    char *shm_ptr = (char *)shm->shm_ptr;
+    int i=0;
+    while(shm_ptr[i] != SPLIT_TOKEN || shm_ptr[i] != END_TOKEN){
+        toReturn[size++] = shm_ptr[i];
+        if(size % BLOCK == 0) toReturn = realloc(toReturn, size + BLOCK);
+        i++;
+    }
+    if(shm_ptr[i] == END_TOKEN){
+        free(toReturn);
+        return NULL;
+    }
+    shm->shm_ptr = (void *)(shm_ptr + i);
+    if(size % BLOCK == 0) toReturn = realloc(toReturn, size + BLOCK);
+    toReturn[size++] = SPLIT_TOKEN;
+    toReturn[size] = '\0';
+    return toReturn;
 }
 
 void unlink_shared_memory_resources(shared_memory_ADT shm) {
