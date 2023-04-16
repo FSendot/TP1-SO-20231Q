@@ -12,6 +12,8 @@
 #include <semaphore.h>
 #include "shared_memory.h"
 
+#define SHM_NAME "/SO-SHARED_MEMORY"
+
 
 #define STDIN 0
 #define BUFFER_SIZE 512
@@ -22,8 +24,8 @@ ssize_t getline(char **linePtr, size_t *n, FILE *stream);
 int main(int argc, char *argv[]) {
 
 
-    int shm_size = 0;
-    
+    int shm_size = 0;  
+
     if (argc > 1) {
         shm_size = atoi(argv[1]);
     } else {
@@ -41,6 +43,10 @@ int main(int argc, char *argv[]) {
 
    // sleep(1);
     shared_memory_ADT shm = open_shared_memory(shm_size);
+
+    
+    show_shared_memory(shm->shm_ptr, shm_size);
+
 
     char *buffer = NULL;
 

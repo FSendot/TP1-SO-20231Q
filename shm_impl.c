@@ -27,12 +27,6 @@
 
 #define BLOCK 64
 
-typedef struct shared_memory_CDT{
-    void *shm_ptr;
-    sem_t *mutex_ptr;
-    sem_t *hashes_unread;
-    size_t shm_size;
-} shared_memory_CDT;
 
 shared_memory_ADT initialize_shared_memory(size_t shm_size) {
     /* Access to shared memory writing must be done by one slave at a time, so initial
@@ -57,8 +51,8 @@ shared_memory_ADT initialize_shared_memory(size_t shm_size) {
     if (shm_fd == ERROR) {
         perror("shm_openlalal");
         exit(EXIT_FAILURE);
-    }
-    
+    }  
+
     //Cause the regular file named by path or referenced by fd to be truncated to a size of precisely length bytes.
     if (ftruncate(shm_fd, shm_size) == ERROR) {
         perror("ftruncate");
@@ -66,7 +60,7 @@ shared_memory_ADT initialize_shared_memory(size_t shm_size) {
     }
 
     //FIXME 
-    shm->shm_ptr = mmap(NULL, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, shm_fd, 0);
+    shm->shm_ptr = mmap(NULL, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
     if (shm->shm_ptr == MAP_FAILED) {
         perror("mmap");
         exit(EXIT_FAILURE);
@@ -82,10 +76,12 @@ shared_memory_ADT open_shared_memory(size_t shm_size) {
         return NULL;
     
     shared_memory_ADT shm = malloc(sizeof(shared_memory_CDT));
-    printf("estoy por hacer el open\n");
-    //se esta haciendo mal este open y devuelve -1 
-    int shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
-    printf("hice el open, fd_shm: %d\n", shm_fd);
+    if(shm == NULL){
+        perror("malloc");
+        exit(1);
+    }
+    
+    int shm_fd = shm_open(SHM_NAME, O_RDWR | O_CREAT, 0666);
     
     if (shm_fd == ERROR) {
         perror("shm_open");
@@ -98,11 +94,12 @@ shared_memory_ADT open_shared_memory(size_t shm_size) {
         perror("sem_open");
         exit(EXIT_FAILURE);
     }
-    if((shm->mutex_ptr = sem_open(SHM__READ_SEM, O_CREAT, 0)) == SEM_FAILED){
+    if((shm->mutex_ptr = sem_open(SHM_WRITE_SEM, O_CREAT, 0)) == SEM_FAILED){
         perror("sem_open");
         exit(EXIT_FAILURE);
     }
 
+    //este mmap dirige mal a las direccs de memoria --> no va al shared memory
     shm->shm_ptr = mmap(NULL, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
 
     if (shm->shm_ptr == MAP_FAILED) {
@@ -147,6 +144,7 @@ void write_to_shared_memory(shared_memory_ADT shm, char* buffer, size_t size) {
 }
 
 char *read_shared_memory(shared_memory_ADT shm){
+
     size_t size = 0;
     char *toReturn = malloc(sizeof(char)*BLOCK);
     if(sem_wait(shm->hashes_unread) == ERROR){
@@ -155,18 +153,15 @@ char *read_shared_memory(shared_memory_ADT shm){
     }
 
     char *shm_ptr = (char *)(shm->shm_ptr);
-    printf("inicializando: shm_ptr: %c\n", shm_ptr[0]);
-     printf("el posta: %c\n", ((char*)(shm->shm_ptr))[0]);
     int i=0;
 
 
-    while(shm_ptr[i] != SPLIT_TOKEN || shm_ptr[i] != END_TOKEN){
+    while(shm_ptr[i] != SPLIT_TOKEN && shm_ptr[i] != END_TOKEN){
         toReturn[size++] = shm_ptr[i];
         if(size % BLOCK == 0) toReturn = realloc(toReturn, size + BLOCK);
         i++;
     }
     if(shm_ptr[i] == END_TOKEN){
-        printf("pasa esto: %s\n", toReturn);
         free(toReturn);
         return NULL;
     }

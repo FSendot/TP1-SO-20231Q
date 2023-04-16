@@ -160,6 +160,7 @@ int main(int argc, char *argv[]) {
         */
         size_t shared_memory_size = (argc-1) * SLAVE_HASH_OUTPUT + 1024;
         shared_memory_ADT shm = initialize_shared_memory(shared_memory_size);
+
         printf("%lu\n", shared_memory_size);
 
 
@@ -247,7 +248,7 @@ int main(int argc, char *argv[]) {
         strcpy(buffer, "$");
         write_to_shared_memory(shm, buffer, strlen(buffer));
         
-        //sleep(15);
+        sleep(40);
         unlink_shared_memory_resources(shm);
 
         return EXIT_SUCCESS;
