@@ -55,9 +55,8 @@ int main(int argc, char *argv[]) {
         for(int i=0; i < BUFFER_SIZE; i++) buffer[i] = '\0';
         bytesRead = read_shared_memory(shm, buffer);
     }
-    printf("Llegue acá owo\n");
 
-  //  close_shared_memory(shm);
+    close_shared_memory(shm);
     
     return EXIT_SUCCESS;
 }
