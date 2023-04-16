@@ -31,7 +31,8 @@ int main(int argc, char *argv[]) {
         size_t n = 0;
         
         printf("Entró 11\n");
-        ssize_t lineLen = getline(&shm_size_str, &n, STDIN);
+        ssize_t lineLen = getline(&shm_size_str, &n, stdin);
+        printf("%s", shm_size_str);
         printf("Salió 11\n");
         if (shm_size_str[lineLen-1] == '\n') {
                 shm_size_str[lineLen-1] = '\0';   //Because, from STDIN, the number comes styled like 511\n\0

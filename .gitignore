@@ -6,3 +6,5 @@ test.txt
 slave.o
 errors.xml
 vista
+output.txt
+shm_impl.o

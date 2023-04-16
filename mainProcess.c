@@ -160,8 +160,12 @@ int main(int argc, char *argv[]) {
         */
         size_t shared_memory_size = (argc-1) * SLAVE_HASH_OUTPUT + 1024;
         shared_memory_ADT shm = initialize_shared_memory(shared_memory_size);
-        printf("%lu\n", shared_memory_size);              
-
+        printf("%lu\n", shared_memory_size);
+        int output_fd;
+        if((output_fd=open("output.txt", O_WRONLY | O_CREAT)) == ERROR){
+            perror("open");
+            exit(EXIT_FAILURE);
+        }
 
         // We don't need the writing pipes if we are in this process
         for(int i=0; i<slavesAmount; i++){
@@ -226,11 +230,10 @@ int main(int argc, char *argv[]) {
                         closedPipesAmount++;
                     } else{
                         int length = strlen(buffer);
-                        buffer[length] = SPLIT_TOKEN;
-
                         //printf("->%s<-\n", buffer);
 
                         write_to_shared_memory(shm, buffer, length);
+                        write(output_fd, buffer, length);
 
                         for(int i=0; buffer[i] != '\0' ;i++) buffer[i] = '\0';
                         // Here we need to put the line read on the final file and the shared memory space
@@ -250,8 +253,13 @@ int main(int argc, char *argv[]) {
         strcpy(buffer, "$");
         write_to_shared_memory(shm, buffer, strlen(buffer));
         
-        sleep(40);
+        sleep(2);
+        //show_shared_memory(shm);
         unlink_shared_memory_resources(shm);
+        if(close(output_fd) == ERROR){
+            perror("close");
+            exit(EXIT_FAILURE);
+        }
 
         return EXIT_SUCCESS;
     }

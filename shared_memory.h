@@ -7,14 +7,6 @@
 #define ERROR -1
 // #define SHM_SIZE 1048576    // 1MB - Se calcula directo en el main process.
 
-
-typedef struct shared_memory_CDT{
-    void *shm_ptr;
-    sem_t *mutex_ptr;
-    sem_t *hashes_unread;
-    size_t shm_size;
-} shared_memory_CDT;
-
 typedef struct shared_memory_CDT *shared_memory_ADT;
 
 /*
@@ -32,4 +24,4 @@ void unlink_shared_memory_resources(shared_memory_ADT shm);
 
 
 
-void show_shared_memory(void* shm_ptr, size_t shm_size);
+void show_shared_memory(shared_memory_ADT shm);

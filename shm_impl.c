@@ -27,6 +27,14 @@
 
 #define BLOCK 64
 
+typedef struct shared_memory_CDT{
+    void *shm_ptr;
+    void *shm_initial_ptr;
+    sem_t *mutex_ptr;
+    sem_t *hashes_unread;
+    size_t shm_size;
+} shared_memory_CDT;
+
 
 shared_memory_ADT initialize_shared_memory(size_t shm_size) {
     /* Access to shared memory writing must be done by one slave at a time, so initial
@@ -61,6 +69,7 @@ shared_memory_ADT initialize_shared_memory(size_t shm_size) {
 
     //FIXME 
     shm->shm_ptr = mmap(NULL, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    shm->shm_initial_ptr = shm->shm_ptr;
     if (shm->shm_ptr == MAP_FAILED) {
         perror("mmap");
         exit(EXIT_FAILURE);
@@ -81,7 +90,7 @@ shared_memory_ADT open_shared_memory(size_t shm_size) {
         exit(1);
     }
     
-    int shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
+    int shm_fd = shm_open(SHM_NAME, O_RDONLY | O_CREAT, 0666);
     if (shm_fd == ERROR) {
         perror("shm_open");
         exit(EXIT_FAILURE);
@@ -105,6 +114,7 @@ shared_memory_ADT open_shared_memory(size_t shm_size) {
         perror("mmap");
         exit(EXIT_FAILURE);
     }
+    shm->shm_initial_ptr = shm->shm_ptr;
 
     return shm;
 }
@@ -124,12 +134,10 @@ void write_to_shared_memory(shared_memory_ADT shm, char* buffer, size_t size) {
 
     if (*((char*)shm->shm_ptr) == INITIAL_TOKEN) {
         strcpy((char*)shm->shm_ptr, buffer);
-        ((char*)(shm->shm_ptr))[strlen(buffer)] = SPLIT_TOKEN;
     } else {
         char* lastAppearance = strrchr((char*)(shm->shm_ptr), SPLIT_TOKEN);
         lastAppearance++;
         strcpy(lastAppearance, buffer);
-        lastAppearance[strlen(buffer)] = SPLIT_TOKEN;
     }
     
 
@@ -173,9 +181,15 @@ char* read_shared_memory(shared_memory_ADT shm){
 
 void unlink_shared_memory_resources(shared_memory_ADT shm) {
     //FIXME: No se si está bien...
-    sem_close(shm->hashes_unread);
-    sem_close(shm->mutex_ptr);
-    
+    if(sem_close(shm->hashes_unread) == ERROR || sem_close(shm->mutex_ptr) == ERROR){
+        perror("sem_close");
+        exit(EXIT_FAILURE);
+    }
+    if(sem_unlink(SHM_WRITE_SEM) == ERROR || sem_unlink(SHM__READ_SEM) == ERROR){
+        perror("sem_unlink");
+        exit(EXIT_FAILURE);
+    }
+
     if(munmap(shm->shm_ptr, shm->shm_size)==ERROR){
         perror("munmap");
         exit(EXIT_FAILURE);
@@ -189,11 +203,11 @@ void unlink_shared_memory_resources(shared_memory_ADT shm) {
 /*
     Función super auxiliar.
 */
-void show_shared_memory(void* shm_ptr, size_t shm_size) {
+void show_shared_memory(shared_memory_ADT shm) {
     printf("Comenzando a imprimir la shared memory.\n");
     int i = 0;
-    while (i < shm_size) {
-        printf("%c", (char) *((char*)shm_ptr + i));
+    while (i < shm->shm_size) {
+        printf("%c", (char) *((char*)shm->shm_initial_ptr + i));
         i++;
     }
     printf("Finalizado.\n");
