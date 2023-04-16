@@ -19,8 +19,9 @@ shared_memory_ADT initialize_shared_memory(size_t shm_size);
 */
 shared_memory_ADT open_shared_memory(size_t shm_size);
 void write_to_shared_memory(shared_memory_ADT shm, char* buffer, size_t size);
-char *read_shared_memory(shared_memory_ADT shm);
+int read_shared_memory(shared_memory_ADT shm, char *buffer);
 void unlink_shared_memory_resources(shared_memory_ADT shm);
+void close_shared_memory(shared_memory_ADT shm);
 
 
 

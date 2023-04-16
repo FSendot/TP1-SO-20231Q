@@ -161,6 +161,14 @@ int main(int argc, char *argv[]) {
         size_t shared_memory_size = (argc-1) * SLAVE_HASH_OUTPUT + 1024;
         shared_memory_ADT shm = initialize_shared_memory(shared_memory_size);
         printf("%d\n", (int) shared_memory_size);
+        if(fflush(NULL) == EOF){
+            perror("fflush");
+            exit(EXIT_FAILURE);
+        }
+        // if(close(STDOUT) == ERROR){
+        //     perror("close");
+        //     exit(EXIT_FAILURE);
+        // }
         int output_fd;
         if((output_fd=open("output.txt", O_WRONLY | O_CREAT)) == ERROR){
             perror("open");
@@ -230,7 +238,6 @@ int main(int argc, char *argv[]) {
                         closedPipesAmount++;
                     } else{
                         int length = strlen(buffer);
-                        //printf("->%s<-\n", buffer);
 
                         write_to_shared_memory(shm, buffer, length);
                         write(output_fd, buffer, length);
@@ -249,19 +256,20 @@ int main(int argc, char *argv[]) {
         free(outPipes.pipes);
         free(closedPipes);
 
+        for(int i=0; buffer[i] != '\0' ;i++) buffer[i] = '\0';
+
         // We notify to the shared memory that we finished writing in it
         strcpy(buffer, "$");
         write_to_shared_memory(shm, buffer, strlen(buffer));
         
-        sleep(2);
-        //show_shared_memory(shm);
-/*        
+        sleep(3);
+  
         unlink_shared_memory_resources(shm);
         if(close(output_fd) == ERROR){
             perror("close");
             exit(EXIT_FAILURE);
         }
-*/
+
         return EXIT_SUCCESS;
     }
 

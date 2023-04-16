@@ -52,11 +52,11 @@ void launchMD5(char *path){
 
         close(pipefd[0]);
 
-        char writeBuffer[PIPE_BUFF] = {0};
-        sprintf(writeBuffer, "Process ID: %d | Hash Value and Filename: %s\n", getpid(), readBuffer);
-        writeBuffer[strlen(writeBuffer)-1] = '\0'; // Elimino el enter final que agrega md5sum al hash.
-        write(STDOUT, writeBuffer, strlen(writeBuffer));
-    
+        printf("Process ID: %d | Hash Value and Filename: %s", getpid(), readBuffer);
+        if(fflush(NULL) == EOF){
+            perror("fflush");
+            exit(EXIT_FAILURE);
+        }    
     } else{
         close(pipefd[0]);
         perror("md5sum");

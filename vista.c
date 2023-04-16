@@ -41,21 +41,16 @@ int main(int argc, char *argv[]) {
         free(shm_size_str);
     }
     
-
-
     shared_memory_ADT shm = open_shared_memory(shm_size);
-    char *buffer = NULL;
+    char buffer[BUFFER_SIZE] = {0};
 
-    buffer = read_shared_memory(shm);
-    while(buffer != NULL) {
-        printf("buffer: %s", buffer);
+    while(read_shared_memory(shm, buffer) != EOF) {
         printf("%s", buffer);
-        free(buffer);
-        buffer = read_shared_memory(shm);
+        for(int i=0; buffer[i] != '\0' ;i++) buffer[i] = '\0';
     }
+    printf("Llegue acá owo\n");
+    close_shared_memory(shm);
     
-    unlink_shared_memory_resources(shm);
-
     return EXIT_SUCCESS;
 }
     // Hasta acá ya está chequeado que funciona.

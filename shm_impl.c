@@ -25,10 +25,10 @@
 // Se usa al escribir sobre la memoria compartida.
 #define SHM_WRITE_SEM "/SO-WRITE-SEM"   
 
-#define BLOCK 64
+#define BLOCK 256
 
 typedef struct shared_memory_CDT{
-    void *shm_ptr;
+    char *shm_ptr;
     void *shm_initial_ptr;
     sem_t *mutex_ptr;
     sem_t *hashes_unread;
@@ -53,7 +53,6 @@ shared_memory_ADT initialize_shared_memory(size_t shm_size) {
         exit(EXIT_FAILURE);
     }
 
-
     //A new shared memory object initially has zero length--the size of the object.
     int shm_fd = shm_open(SHM_NAME, O_RDWR | O_CREAT, 0666);
     if (shm_fd == ERROR) {
@@ -68,14 +67,14 @@ shared_memory_ADT initialize_shared_memory(size_t shm_size) {
     }
 
     //FIXME 
-    shm->shm_ptr = mmap(NULL, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-    shm->shm_initial_ptr = shm->shm_ptr;
-    if (shm->shm_ptr == MAP_FAILED) {
+    void *shm_ptr = mmap(NULL, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    
+    if (shm_ptr == MAP_FAILED) {
         perror("mmap");
         exit(EXIT_FAILURE);
     }
-
-    *(char*)(shm->shm_ptr) = INITIAL_TOKEN;
+    shm->shm_initial_ptr = shm_ptr;
+    shm->shm_ptr = (char *)shm_ptr;
 
     return shm;
 }
@@ -87,7 +86,7 @@ shared_memory_ADT open_shared_memory(size_t shm_size) {
     shared_memory_ADT shm = malloc(sizeof(shared_memory_CDT));
     if(shm == NULL){
         perror("malloc");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     
     int shm_fd = shm_open(SHM_NAME, O_RDONLY, 0666);
@@ -108,13 +107,14 @@ shared_memory_ADT open_shared_memory(size_t shm_size) {
     }
 
     //este mmap dirige mal a las direccs de memoria --> no va al shared memory
-    shm->shm_ptr = mmap(NULL, shm_size, PROT_READ, MAP_SHARED, shm_fd, 0);
+    void *shm_ptr = mmap(NULL, shm_size, PROT_READ, MAP_SHARED, shm_fd, 0);
 
-    if (shm->shm_ptr == MAP_FAILED) {
+    if (shm_ptr == MAP_FAILED) {
         perror("mmap");
         exit(EXIT_FAILURE);
     }
-    shm->shm_initial_ptr = shm->shm_ptr;
+    shm->shm_initial_ptr = shm_ptr;
+    shm->shm_ptr = (char *)shm_ptr;
 
     return shm;
 }
@@ -126,57 +126,64 @@ void write_to_shared_memory(shared_memory_ADT shm, char* buffer, size_t size) {
         Se podría mejorar, teniendo un contador de cuantos hashes ya se guardaron, e ir directo
         a escribir a la posición proxima a escribir.
     */
+    char *shm_ptr = shm->shm_ptr;
 
     if(sem_wait(shm->mutex_ptr) == ERROR){
         perror("sem_wait");
         exit(EXIT_FAILURE);
     }
-
-    if (*((char*)shm->shm_ptr) == INITIAL_TOKEN) {
-        strcpy((char*)shm->shm_ptr, buffer);
-    } else {
-        char* lastAppearance = strrchr((char*)(shm->shm_ptr), SPLIT_TOKEN);
-        lastAppearance++;
-        strcpy(lastAppearance, buffer);
-    }
     
-
+    strcpy(shm_ptr, buffer);
+    shm->shm_ptr = shm_ptr + strlen(buffer) + 1;
+    
     if(sem_post(shm->mutex_ptr) == ERROR){
         perror("sem_post");
         exit(EXIT_FAILURE);
     }
+
     if(sem_post(shm->hashes_unread) == ERROR){
         perror("sem_post");
         exit(EXIT_FAILURE);
     }
+    
 }
 
-char* read_shared_memory(shared_memory_ADT shm){
+int read_shared_memory(shared_memory_ADT shm, char *buffer){
     size_t size = 0;
-    char *toReturn = malloc(sizeof(char)*BLOCK);
+
     if(sem_wait(shm->hashes_unread) == ERROR){
         perror("sem_wait");
         exit(EXIT_FAILURE);
     }
 
-    char *shm_ptr = (char *)(shm->shm_ptr);
+    char *shm_ptr = shm->shm_ptr;
     int i=0;
 
     while(shm_ptr[i] != SPLIT_TOKEN && shm_ptr[i] != END_TOKEN){
-        toReturn[size++] = shm_ptr[i];
-        if(size % BLOCK == 0) toReturn = realloc(toReturn, size + BLOCK);
+        buffer[size] = shm_ptr[i];
         i++;
+        size++;
     }
     if(shm_ptr[i] == END_TOKEN){
-        free(toReturn);
-        return NULL;
+        return EOF;
     }
-    shm->shm_ptr = (void *)(shm_ptr + i + 1);
-    if(size % BLOCK == 0) toReturn = realloc(toReturn, size + BLOCK);
-    toReturn[size++] = SPLIT_TOKEN;
-    toReturn[size] = '\0';
 
-    return toReturn;
+    shm->shm_ptr = shm_ptr + i + 1;
+    buffer[size++] = SPLIT_TOKEN;
+
+    return size;
+}
+
+void close_shared_memory(shared_memory_ADT shm){
+    if(sem_close(shm->hashes_unread) == ERROR || sem_close(shm->mutex_ptr) == ERROR){
+        perror("sem_close");
+        exit(EXIT_FAILURE);
+    }
+    if(munmap(shm->shm_initial_ptr, shm->shm_size)==ERROR){
+        perror("munmap");
+        exit(EXIT_FAILURE);
+    }
+    free(shm);
 }
 
 void unlink_shared_memory_resources(shared_memory_ADT shm) {
@@ -193,7 +200,8 @@ void unlink_shared_memory_resources(shared_memory_ADT shm) {
     if(munmap(shm->shm_initial_ptr, shm->shm_size)==ERROR){
         perror("munmap");
         exit(EXIT_FAILURE);
-    } if(shm_unlink(SHM_NAME)==ERROR){
+    }
+    if(shm_unlink(SHM_NAME)==ERROR){
         perror("shm_unlink");
         exit(EXIT_FAILURE);
     }
