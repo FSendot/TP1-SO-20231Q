@@ -22,6 +22,10 @@
 ssize_t getline(char **linePtr, size_t *n, FILE *stream);
 
 int main(int argc, char *argv[]) {
+    // Disable buffering on stdout
+    //csetvbuf(stdout, NULL, _IONBF, 0);
+
+
     int shm_size = 0;  
     
     if (argc > 1) {
@@ -44,12 +48,16 @@ int main(int argc, char *argv[]) {
     shared_memory_ADT shm = open_shared_memory(shm_size);
     char buffer[BUFFER_SIZE] = {0};
 
-    while(read_shared_memory(shm, buffer) != EOF) {
+
+    int bytesRead = read_shared_memory(shm, buffer);
+    while(bytesRead != EOF) {
         printf("%s", buffer);
-        for(int i=0; buffer[i] != '\0' ;i++) buffer[i] = '\0';
+        for(int i=0; i < BUFFER_SIZE; i++) buffer[i] = '\0';
+        bytesRead = read_shared_memory(shm, buffer);
     }
     printf("Llegue acá owo\n");
-    close_shared_memory(shm);
+
+  //  close_shared_memory(shm);
     
     return EXIT_SUCCESS;
 }

@@ -134,7 +134,7 @@ void write_to_shared_memory(shared_memory_ADT shm, char* buffer, size_t size) {
     }
     
     strcpy(shm_ptr, buffer);
-    shm->shm_ptr = shm_ptr + strlen(buffer) + 1;
+    shm->shm_ptr = shm_ptr + strlen(buffer);
     
     if(sem_post(shm->mutex_ptr) == ERROR){
         perror("sem_post");
