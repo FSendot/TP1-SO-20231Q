@@ -22,16 +22,17 @@
 ssize_t getline(char **linePtr, size_t *n, FILE *stream);
 
 int main(int argc, char *argv[]) {
-
-
     int shm_size = 0;  
-
+    
     if (argc > 1) {
         shm_size = atoi(argv[1]);
     } else {
         char *shm_size_str = NULL;
         size_t n = 0;
-        ssize_t lineLen = getline(&shm_size_str, &n, stdin);
+        
+        printf("Entró 11\n");
+        ssize_t lineLen = getline(&shm_size_str, &n, STDIN);
+        printf("Salió 11\n");
         if (shm_size_str[lineLen-1] == '\n') {
                 shm_size_str[lineLen-1] = '\0';   //Because, from STDIN, the number comes styled like 511\n\0
                 shm_size = atoi(shm_size_str);    
@@ -40,24 +41,22 @@ int main(int argc, char *argv[]) {
 
         free(shm_size_str);
     }
-
-   // sleep(1);
-    shared_memory_ADT shm = open_shared_memory(shm_size);
-
     
-    show_shared_memory(shm->shm_ptr, shm_size);
 
 
+    shared_memory_ADT shm = open_shared_memory(shm_size);
     char *buffer = NULL;
 
-    while((buffer = read_shared_memory(shm)) != NULL) {
+    buffer = read_shared_memory(shm);
+    while(buffer != NULL) {
         printf("buffer: %s", buffer);
         printf("%s", buffer);
         free(buffer);
-        buffer = NULL;
+        buffer = read_shared_memory(shm);
     }
     
     unlink_shared_memory_resources(shm);
+
     return EXIT_SUCCESS;
 }
     // Hasta acá ya está chequeado que funciona.

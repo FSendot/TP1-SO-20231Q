@@ -160,8 +160,7 @@ int main(int argc, char *argv[]) {
         */
         size_t shared_memory_size = (argc-1) * SLAVE_HASH_OUTPUT + 1024;
         shared_memory_ADT shm = initialize_shared_memory(shared_memory_size);
-
-        printf("%lu\n", shared_memory_size);
+        printf("%lu\n", shared_memory_size);              
 
 
         // We don't need the writing pipes if we are in this process
@@ -228,8 +227,11 @@ int main(int argc, char *argv[]) {
                     } else{
                         int length = strlen(buffer);
                         buffer[length] = SPLIT_TOKEN;
+
+                        //printf("->%s<-\n", buffer);
+
                         write_to_shared_memory(shm, buffer, length);
-                        
+
                         for(int i=0; buffer[i] != '\0' ;i++) buffer[i] = '\0';
                         // Here we need to put the line read on the final file and the shared memory space
                         //after we implement the shared memory program                    

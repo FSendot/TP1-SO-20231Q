@@ -49,7 +49,7 @@ shared_memory_ADT initialize_shared_memory(size_t shm_size) {
     //A new shared memory object initially has zero length--the size of the object.
     int shm_fd = shm_open(SHM_NAME, O_RDWR | O_CREAT, 0666);
     if (shm_fd == ERROR) {
-        perror("shm_openlalal");
+        perror("shm_open");
         exit(EXIT_FAILURE);
     }  
 
@@ -81,8 +81,7 @@ shared_memory_ADT open_shared_memory(size_t shm_size) {
         exit(1);
     }
     
-    int shm_fd = shm_open(SHM_NAME, O_RDWR | O_CREAT, 0666);
-    
+    int shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
     if (shm_fd == ERROR) {
         perror("shm_open");
         exit(EXIT_FAILURE);
@@ -90,11 +89,11 @@ shared_memory_ADT open_shared_memory(size_t shm_size) {
     
 
     shm->shm_size = shm_size;
-    if((shm->hashes_unread = sem_open(SHM__READ_SEM, O_CREAT, 0)) == SEM_FAILED){
+    if((shm->hashes_unread = sem_open(SHM__READ_SEM, O_RDWR)) == SEM_FAILED){
         perror("sem_open");
         exit(EXIT_FAILURE);
     }
-    if((shm->mutex_ptr = sem_open(SHM_WRITE_SEM, O_CREAT, 0)) == SEM_FAILED){
+    if((shm->mutex_ptr = sem_open(SHM_WRITE_SEM, O_RDWR)) == SEM_FAILED){
         perror("sem_open");
         exit(EXIT_FAILURE);
     }
@@ -128,10 +127,11 @@ void write_to_shared_memory(shared_memory_ADT shm, char* buffer, size_t size) {
         ((char*)(shm->shm_ptr))[strlen(buffer)] = SPLIT_TOKEN;
     } else {
         char* lastAppearance = strrchr((char*)(shm->shm_ptr), SPLIT_TOKEN);
-        lastAppearance++; 
+        lastAppearance++;
         strcpy(lastAppearance, buffer);
         lastAppearance[strlen(buffer)] = SPLIT_TOKEN;
     }
+    
 
     if(sem_post(shm->mutex_ptr) == ERROR){
         perror("sem_post");
@@ -143,8 +143,7 @@ void write_to_shared_memory(shared_memory_ADT shm, char* buffer, size_t size) {
     }
 }
 
-char *read_shared_memory(shared_memory_ADT shm){
-
+char* read_shared_memory(shared_memory_ADT shm){
     size_t size = 0;
     char *toReturn = malloc(sizeof(char)*BLOCK);
     if(sem_wait(shm->hashes_unread) == ERROR){
@@ -155,7 +154,6 @@ char *read_shared_memory(shared_memory_ADT shm){
     char *shm_ptr = (char *)(shm->shm_ptr);
     int i=0;
 
-
     while(shm_ptr[i] != SPLIT_TOKEN && shm_ptr[i] != END_TOKEN){
         toReturn[size++] = shm_ptr[i];
         if(size % BLOCK == 0) toReturn = realloc(toReturn, size + BLOCK);
@@ -165,10 +163,11 @@ char *read_shared_memory(shared_memory_ADT shm){
         free(toReturn);
         return NULL;
     }
-    shm->shm_ptr = (void *)(shm_ptr + i);
+    shm->shm_ptr = (void *)(shm_ptr + i + 1);
     if(size % BLOCK == 0) toReturn = realloc(toReturn, size + BLOCK);
     toReturn[size++] = SPLIT_TOKEN;
     toReturn[size] = '\0';
+
     return toReturn;
 }
 

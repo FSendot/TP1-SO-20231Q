@@ -65,7 +65,7 @@ void launchMD5(char *path){
 }
 
 int main(int argc, char *argv[]){
-    setvbuf(stdout, NULL, _IONBF, 0);
+    //setvbuf(stdout, NULL, _IONBF, 0);
 
     //If slave receives arguments
     if(argc > 1){
