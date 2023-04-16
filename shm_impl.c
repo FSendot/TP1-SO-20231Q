@@ -90,7 +90,7 @@ shared_memory_ADT open_shared_memory(size_t shm_size) {
         exit(1);
     }
     
-    int shm_fd = shm_open(SHM_NAME, O_RDONLY | O_CREAT, 0666);
+    int shm_fd = shm_open(SHM_NAME, O_RDONLY, 0666);
     if (shm_fd == ERROR) {
         perror("shm_open");
         exit(EXIT_FAILURE);
@@ -108,7 +108,7 @@ shared_memory_ADT open_shared_memory(size_t shm_size) {
     }
 
     //este mmap dirige mal a las direccs de memoria --> no va al shared memory
-    shm->shm_ptr = mmap(NULL, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    shm->shm_ptr = mmap(NULL, shm_size, PROT_READ, MAP_SHARED, shm_fd, 0);
 
     if (shm->shm_ptr == MAP_FAILED) {
         perror("mmap");
@@ -190,7 +190,7 @@ void unlink_shared_memory_resources(shared_memory_ADT shm) {
         exit(EXIT_FAILURE);
     }
 
-    if(munmap(shm->shm_ptr, shm->shm_size)==ERROR){
+    if(munmap(shm->shm_initial_ptr, shm->shm_size)==ERROR){
         perror("munmap");
         exit(EXIT_FAILURE);
     } if(shm_unlink(SHM_NAME)==ERROR){

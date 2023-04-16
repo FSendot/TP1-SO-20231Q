@@ -160,7 +160,7 @@ int main(int argc, char *argv[]) {
         */
         size_t shared_memory_size = (argc-1) * SLAVE_HASH_OUTPUT + 1024;
         shared_memory_ADT shm = initialize_shared_memory(shared_memory_size);
-        printf("%lu\n", shared_memory_size);
+        printf("%d\n", (int) shared_memory_size);
         int output_fd;
         if((output_fd=open("output.txt", O_WRONLY | O_CREAT)) == ERROR){
             perror("open");
@@ -255,12 +255,13 @@ int main(int argc, char *argv[]) {
         
         sleep(2);
         //show_shared_memory(shm);
+/*        
         unlink_shared_memory_resources(shm);
         if(close(output_fd) == ERROR){
             perror("close");
             exit(EXIT_FAILURE);
         }
-
+*/
         return EXIT_SUCCESS;
     }
 
