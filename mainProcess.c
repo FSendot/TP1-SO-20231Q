@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -305,7 +306,10 @@ int main(int argc, char *argv[]) {
         }
 
         // Every pipe is closed, now we need to free the remaining memory spaces and finish this process
-
+        if(fcloseall() == EOF){
+            perror("fcloseall");
+            exit(EXIT_FAILURE);
+        }
         free(out_pipes.pipes);
         free(closed_pipes);
         free(pipe_streams);
