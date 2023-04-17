@@ -1,3 +1,5 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <sys/types.h>
@@ -168,8 +170,19 @@ int main(int argc, char *argv[]) {
 
     for(int i = 0; i < initial_paths && arg_count < argc ;i++){
         for(int j = 0; j < slaves_amount && arg_count < argc;j++, arg_count++){
-            sprintf(aux_buffer, "%s\n", argv[arg_count]);
-            write(in_pipes.pipes[j][1], aux_buffer, strlen(aux_buffer));
+            int k = 0;
+            while(k < PIPE_BUFF && argv[arg_count][k] != '\0'){
+                aux_buffer[k] = argv[arg_count][k];
+                k++;
+            }
+            if(k < PIPE_BUFF - 1){
+                aux_buffer[k++] = '\n';
+                aux_buffer[k] = '\0';
+            } else{
+                aux_buffer[k] = '\0';
+            }
+            
+            write(in_pipes.pipes[j][1], aux_buffer, k);
         }
     }
 
@@ -316,7 +329,7 @@ int main(int argc, char *argv[]) {
 
         // We notify to the shared memory that we finished writing in it
 
-        strcpy(aux_buffer, "$");
+        strcpy(aux_buffer, END_STR);
         write_to_shared_memory(shared_mem, aux_buffer, strlen(aux_buffer));
 
         sleep(4);
@@ -375,9 +388,18 @@ int main(int argc, char *argv[]) {
 
         for(int i = 0; i < slaves_amount && arg_count < argc ;i++){
             if(FD_ISSET(in_pipes.pipes[i][1], &write_fd)){
-                sprintf(aux_buffer,"%s\n",argv[arg_count]);
-                
-                write(in_pipes.pipes[i][1], aux_buffer, strlen(aux_buffer));
+                int k = 0;
+                while(k < PIPE_BUFF && argv[arg_count][k] != '\0'){
+                    aux_buffer[k] = argv[arg_count][k];
+                    k++;
+                }
+                if(k < PIPE_BUFF - 1){
+                    aux_buffer[k++] = '\n';
+                    aux_buffer[k] = '\0';
+                } else{
+                    aux_buffer[k] = '\0';
+                }
+                write(in_pipes.pipes[i][1], aux_buffer, k);
 
                 arg_count++;
             }

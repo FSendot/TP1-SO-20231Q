@@ -1,3 +1,5 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
 #define _GNU_SOURCE
 #include <string.h>
@@ -16,7 +18,6 @@
 #include "shared_memory.h"
 
 #define SPLIT_TOKEN '\n'
-#define END_TOKEN '$'
 #define ERROR -1
 
 /*
@@ -139,7 +140,7 @@ size_t read_shared_memory(shared_memory_ADT shm, char *buffer, size_t size){
 
     char *shm_ptr = shm->shm_ptr;
 
-    while(shm_ptr[to_return] != SPLIT_TOKEN && shm_ptr[to_return] != END_TOKEN && to_return < size){
+    while(to_return < size && shm_ptr[to_return] != SPLIT_TOKEN && shm_ptr[to_return] != END_TOKEN){
         buffer[to_return] = shm_ptr[to_return];
         to_return++;
     }

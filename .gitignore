@@ -6,5 +6,9 @@ test.txt
 slave.o
 errors.xml
 vista
+vista.o
 output.txt
 shm_impl.o
+PVS-Studio.log
+report.tasks
+strace_out

@@ -1,3 +1,5 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 #include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -77,27 +79,26 @@ int main(int argc, char *argv[]){
     }
 
     // Initialize variables for getline()
-    char *buffer = NULL;
-    size_t n = 0;
-    ssize_t line_len = 0;
+    char buffer[PIPE_BUFF] = {0};
+    size_t line_len;
     errno = 0;
 
     // The linePointer will contain allocated memory on the programm, that has to be freed after using it
-    while((line_len = getline(&buffer, &n, stdin)) > 0){
+    while(fgets(buffer, PIPE_BUFF, stdin) != NULL){
         // We need to get rid of the '\n' character for md5sum
-        buffer[line_len-1] = buffer[line_len-1] == '\n' ? '\0': buffer[line_len-1];
+        line_len = strlen(buffer);
+        if(line_len > 0){
+            buffer[line_len-1] = buffer[line_len-1] == '\n' ? '\0': buffer[line_len-1];
+        }
         launch_md5(buffer);
-        free(buffer);
-        buffer = NULL;
-        n = 0;
+        for(int i = 0; buffer[i] != '\0' ;i++){
+            buffer[i] = '\0';
+        }
     }
 
     // Last check if getline failed for any reason and/or couldn't free the memory alloc of the buffer
     if(errno != 0){
-        if(buffer != NULL){
-            free(buffer);
-        }
-        perror("getline");
+        perror("fgets");
         exit(EXIT_FAILURE);
     }
 

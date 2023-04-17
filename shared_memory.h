@@ -1,5 +1,8 @@
 #include <stdlib.h>
 
+#define END_TOKEN '$'
+#define END_STR "$"
+
 // Data structure provided for the user to hold all the information needed about this shared memory.
 typedef struct shared_memory_CDT *shared_memory_ADT;
 
