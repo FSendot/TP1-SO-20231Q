@@ -239,7 +239,7 @@ int main(int argc, char *argv[]) {
                     
                     // EOF reached on that pipe
                     if(bufferPtr == NULL){
-                        if(fclose(pipeStreams[i]) == ERROR){
+                        if(close(outPipes.pipes[i][0]) == ERROR){
                             perror("close");
                             exit(EXIT_FAILURE);
                         }
