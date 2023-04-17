@@ -5,77 +5,47 @@
 #include <errno.h>
 #include <time.h>
 
-//Shared memory
-#include <sys/mman.h>
-#include <sys/stat.h>        /* For mode constants */
-#include <fcntl.h>           /* For O_* constants */
-#include <semaphore.h>
 #include "shared_memory.h"
-
-#define SHM_NAME "/SO-SHARED_MEMORY"
-
 
 #define STDIN 0
 #define BUFFER_SIZE 512
 
 
-ssize_t getline(char **linePtr, size_t *n, FILE *stream);
+ssize_t getline(char **lineptr, size_t *n, FILE *stream);
 
 int main(int argc, char *argv[]) {
-    // Disable buffering on stdout
-    //csetvbuf(stdout, NULL, _IONBF, 0);
-
-
-    int shm_size = 0;  
+    int shared_mem_size = 0;  
     
     if (argc > 1) {
-        shm_size = atoi(argv[1]);
+        shared_mem_size = atoi(argv[1]);
     } else {
-        char *shm_size_str = NULL;
+        char *shared_mem_size_str = NULL;
         size_t n = 0;
         
-        ssize_t lineLen = getline(&shm_size_str, &n, stdin);
+        ssize_t line_len = getline(&shared_mem_size_str, &n, stdin);
 
-        if (shm_size_str[lineLen-1] == '\n') {
-                shm_size_str[lineLen-1] = '\0';   //Because, from STDIN, the number comes styled like 511\n\0
-                shm_size = atoi(shm_size_str);    
+        if (shared_mem_size_str[line_len-1] == '\n') {
+                shared_mem_size_str[line_len-1] = '\0';
+                shared_mem_size = atoi(shared_mem_size_str);    
         }
-        shm_size = atoi(shm_size_str);
+        shared_mem_size = atoi(shared_mem_size_str);
 
-        free(shm_size_str);
+        free(shared_mem_size_str);
     }
     
-    shared_memory_ADT shm = open_shared_memory(shm_size);
+    shared_memory_ADT shared_mem = open_shared_memory(shared_mem_size);
     char buffer[BUFFER_SIZE] = {0};
 
-    int bytesRead = read_shared_memory(shm, buffer);
-    while(bytesRead != EOF) {
+    int bytes_read = read_shared_memory(shared_mem, buffer, BUFFER_SIZE);
+    while(bytes_read != EOF) {
         printf("%s", buffer);
-        for(int i=0; i < BUFFER_SIZE; i++) buffer[i] = '\0';
-        bytesRead = read_shared_memory(shm, buffer);
+        for(int i = 0; buffer[i] != '\0' ;i++){
+            buffer[i] = '\0';
+        }
+        bytes_read = read_shared_memory(shared_mem, buffer, BUFFER_SIZE);
     }
 
-    close_shared_memory(shm);
+    close_shared_memory(shared_mem);
     
     return EXIT_SUCCESS;
 }
-    // Hasta acá ya está chequeado que funciona.
-/*
-    sem_t* sem_reader = sem_open(SHM__READ_SEM, 0);
-
-    char* shm_ptr = (char*) open_shared_memory(shm_size);
-
-    int i = 0;
-    while (1) {
-        printf("%d. Vemos si hay mas data\n", i);
-        sem_wait(sem_reader);
-        printf("Hay\n");
-        i++;
-        printf("%s\n", shm_ptr);
-        shm_ptr = shm_ptr + strlen(shm_ptr) + 1;
-        // sem_post(sem_reader); No se debe realizar acá. Lo hace el shm_impl cuando escribe un nuevo hash.
-    }
-
-    return 0;   //No debería llegar.
-}
-*/

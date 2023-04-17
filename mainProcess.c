@@ -6,14 +6,10 @@
 #include <sys/wait.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <math.h>
 
-//Shared memory
-#include <sys/mman.h>
-#include <sys/stat.h>        /* For mode constants */
-#include <fcntl.h>           /* For O_* constants */
-#include <semaphore.h>
+#include <sys/stat.h>        // For mode constants
+#include <fcntl.h>           // For O_* constants
 #include "shared_memory.h"
 
 #define STDIN 0
@@ -21,70 +17,86 @@
 #define ERROR -1
 
 #define PIPE_BUFF 512
-#define SLAVE_HASH_OUTPUT 106 //Counts it as a string.
+#define SLAVE_HASH_OUTPUT 106   // Counts it as a string.
 
-// Data structure useful for creating a group of pipes used by the main process
-typedef struct pipeGroup{
-    int **pipes;
-} pipeGroup;
+// Gcc doesn't find the propotype of this function, we don't know why, so we write it in here.
 
 void setlinebuf(FILE *stream);
+
+// Data structure useful for creating a group of pipes used by the main process.
+typedef struct pipe_group{
+    int **pipes;
+} pipe_group;
+
 
 int main(int argc, char *argv[]) {
     // argsv[] = {"./mainProcess", "./archivo1", "./archivo2"} 
     // argc = mainPath + #arguments
 
-    // Pipes used for writing on the slave processes
-    pipeGroup inPipes;
+    // Pipes used for writing on the worker processes.
 
-    // Pipes used for read the slave processes results
-    pipeGroup outPipes;
+    pipe_group in_pipes;
 
-    int status;
-
-    // The program path/name doesn't count, so we start to counting one after
-    int argCount = 1;
-
-    // If the program has less paths than the default slaves amount, it only creates the necesary amount of slaves
     
-    /* Slaves are created in a log2 order of input, it reduces drastically 
-    ** the amount of processes created for each group of files
-    */ 
-    int slavesAmount = (int) log2((double) argc-1);
-    int initialPaths = slavesAmount / 2;
+    // Pipes used for read the worker processes results.
 
-    /* If we receive only 1 argument -> log2(1) = 0, so we need to increment slavesAmount 
-    **for the program to have at least 1 slave
+    pipe_group out_pipes;
+
+    
+    int status;
+    char aux_buffer[PIPE_BUFF] = {0};
+    
+    // The program path/name doesn't count, so we start to counting one after.
+
+    int arg_count = 1;
+    
+    /* 
+    **  Slaves are created in a log2 order of input, it reduces drastically 
+    **  the amount of processes created for each group of files.
+    */ 
+    
+    int slaves_amount = (int) log2((double) argc - 1);
+    int initial_paths = slaves_amount / 2;
+
+
+    /* 
+    **  If we receive only 1 argument -> log2(1) = 0, so we need to increment slaves_amount 
+    **  for the program to have at least 1 slave.
     */
-    if(slavesAmount < 1){
-        slavesAmount++;
-        initialPaths++;
+    
+    if(slaves_amount < 1){
+        slaves_amount++;
+        initial_paths++;
     }
 
-    inPipes.pipes = malloc(sizeof(int*)*slavesAmount);
-    outPipes.pipes = malloc(sizeof(int*)*slavesAmount);
+    in_pipes.pipes = malloc(slaves_amount*sizeof(int *));
+    out_pipes.pipes = malloc(slaves_amount*sizeof(int *));
 
-    if(inPipes.pipes == NULL || outPipes.pipes == NULL){
+    if(in_pipes.pipes == NULL || out_pipes.pipes == NULL){
         perror("malloc");
         exit(EXIT_FAILURE);
     }
 
-    // We now create all the pipes that we're going to need
-    for(int i=0; i < slavesAmount ;i++){
-        inPipes.pipes[i] = malloc(sizeof(int)*2);
-        outPipes.pipes[i] = malloc(sizeof(int)*2);
-        if(inPipes.pipes[i] == NULL || outPipes.pipes[i] == NULL){
+
+    // We now create all the pipes that we're going to need.
+
+    for(int i = 0; i < slaves_amount ;i++){
+        in_pipes.pipes[i] = malloc(2*sizeof(int));
+        out_pipes.pipes[i] = malloc(2*sizeof(int));
+
+        if(in_pipes.pipes[i] == NULL || out_pipes.pipes[i] == NULL){
             perror("malloc");
             exit(EXIT_FAILURE);
         }
-        if(pipe(inPipes.pipes[i]) == ERROR || pipe(outPipes.pipes[i]) == ERROR){
+        
+        if(pipe(in_pipes.pipes[i]) == ERROR || pipe(out_pipes.pipes[i]) == ERROR){
             perror("pipe");
             exit(EXIT_FAILURE);
         }
     }
 
     pid_t pid;
-    for (int i = 0; i < slavesAmount; i++) {
+    for (int i = 0; i < slaves_amount ;i++) {
         if((pid = fork()) == ERROR){
             perror("fork");
             exit(EXIT_FAILURE);
@@ -92,61 +104,77 @@ int main(int argc, char *argv[]) {
 
         if(pid == 0){
             int aux;
-            //close(0)
-            //dup(inPipes.pipes[i][0])      r-end del pipe
-            if((aux = dup2(inPipes.pipes[i][0], STDIN)) == ERROR || aux != STDIN){
+
+            //close(STDIN)
+            //dup(in_pipes.pipes[i][0])      
+            
+            if((aux = dup2(in_pipes.pipes[i][0], STDIN)) == ERROR || aux != STDIN){     // r-end of pipe
                 perror("dup2");
                 exit(EXIT_FAILURE);
             }
 
-            if((aux = dup2(outPipes.pipes[i][1], STDOUT)) == ERROR || aux != STDOUT){        //w-end del pipe
+            if((aux = dup2(out_pipes.pipes[i][1], STDOUT)) == ERROR || aux != STDOUT){  // w-end of pipe
                 perror("dup");
                 exit(EXIT_FAILURE);
             }
 
-            // No need for the pipes variables to exist in the child process
-            // We can't have memory leaks anywhere, so we're freeing everything that we are not using
-            // and closing every fd that we are not using
-            for(int j=0; j<slavesAmount ;j++){
-                if(close(inPipes.pipes[j][0]) == ERROR || close(inPipes.pipes[j][1]) == ERROR 
-                        || close(outPipes.pipes[j][0]) == ERROR || close(outPipes.pipes[j][1])){
+
+            /*
+            **  No need for the pipes variables to exist in the child process.
+            **  We can't have memory leaks anywhere, so we're freeing everything that we are not using
+            **  and closing every fd that we are not using.
+            */
+            
+            for(int j = 0; j < slaves_amount ;j++){
+                if(close(in_pipes.pipes[j][0]) == ERROR || close(in_pipes.pipes[j][1]) == ERROR 
+                        || close(out_pipes.pipes[j][0]) == ERROR || close(out_pipes.pipes[j][1])){
                     perror("close");
                     exit(EXIT_FAILURE);
                 }
-                free(inPipes.pipes[j]);
-                free(outPipes.pipes[j]);
+                free(in_pipes.pipes[j]);
+                free(out_pipes.pipes[j]);
             }
-            free(inPipes.pipes);
-            free(outPipes.pipes);
+            free(in_pipes.pipes);
+            free(out_pipes.pipes);
 
-            // Everything is ready for the slaves processes
+
+            //  Everything is ready for the slaves processes.
+            
             char *const argvC[] = {"./slave", NULL};
             char *envpC[] = {NULL};
             execve("./slave", argvC, envpC);
             
-            //If reached this line, is because it was an error.
+
+            // If reached this line, is because it was an error.
+
             perror("execve");
             exit(EXIT_FAILURE);
         }
     }
 
-    // We need to close the rest of the pipes in the parent code before forking of doing anything else
-    for(int i=0; i<slavesAmount ;i++){
-        if(close(inPipes.pipes[i][0]) == ERROR || close(outPipes.pipes[i][1]) == ERROR){
+
+    // We need to close the rest of the pipes in the parent code before forking of doing anything else.
+
+    for(int i = 0; i < slaves_amount ;i++){
+        if(close(in_pipes.pipes[i][0]) == ERROR || close(out_pipes.pipes[i][1]) == ERROR){
             perror("close");
             exit(EXIT_FAILURE);
         }
     }
 
-    // Now we have to distribute evenly all the initial paths that the slaves have to process
-    char writeBuff[PIPE_BUFF];
-    for(int i=0; i<initialPaths && argCount < argc ; i++)
-        for(int j=0; j<slavesAmount && argCount < argc; j++, argCount++){
-            sprintf(writeBuff, "%s\n", argv[argCount]);
-            write(inPipes.pipes[j][1], writeBuff, strlen(writeBuff));
-        }
 
-    // Now we can create a subprocess of the main program that can read all the data given by the slaves
+    // Now we have to distribute evenly all the initial paths that the slaves have to process.
+
+    for(int i = 0; i < initial_paths && arg_count < argc ;i++){
+        for(int j = 0; j < slaves_amount && arg_count < argc;j++, arg_count++){
+            sprintf(aux_buffer, "%s\n", argv[arg_count]);
+            write(in_pipes.pipes[j][1], aux_buffer, strlen(aux_buffer));
+        }
+    }
+
+
+    // Now we can create a subprocess of the main program that can read all the data given by the slaves.
+
     if((pid = fork()) == ERROR){
         perror("fork");
         exit(EXIT_FAILURE);
@@ -154,11 +182,11 @@ int main(int argc, char *argv[]) {
 
     
     if(pid == 0){
-        /*
-        La vista esperará el output, que recién en este momento se hace.
-        */
-        size_t shared_memory_size = (argc-1) * SLAVE_HASH_OUTPUT + 1024;
-        shared_memory_ADT shm = initialize_shared_memory(shared_memory_size);
+        
+        //  View will start showing the workers' results after receiving the output given by this process.
+
+        size_t shared_memory_size = (argc-1)*SLAVE_HASH_OUTPUT + 1024;
+        shared_memory_ADT shared_mem = initialize_shared_memory(shared_memory_size);
         printf("%d\n", (int) shared_memory_size);
         if(fflush(stdout) == EOF){
             perror("fflush");
@@ -172,108 +200,124 @@ int main(int argc, char *argv[]) {
         }
         
 
-        // We don't need the writing pipes if we are in this process
-        for(int i=0; i<slavesAmount; i++){
-            if(close(inPipes.pipes[i][1]) == ERROR){
+        // We don't need the writing pipes if we are in this process.
+
+        for(int i = 0; i < slaves_amount ;i++){
+            if(close(in_pipes.pipes[i][1]) == ERROR){
                 perror("close");
                 exit(EXIT_FAILURE);
             }
-            free(inPipes.pipes[i]);
+            free(in_pipes.pipes[i]);
         }
-        free(inPipes.pipes);
+        free(in_pipes.pipes);
 
-        // Now we need to make all the synchronization process for reading all the outputs from the slaves
-        // is blocked waiting for the childs to be on ready state
-        fd_set readfd;
-        int fdAmount, ndfs;
+        /*
+        **  Now we need to make all the synchronization process for reading all the outputs from the slaves
+        **  is blocked waiting for the childs to be on ready state.
+        */
 
-        ndfs = 0;
-        FILE **pipeStreams;
-        if((pipeStreams = malloc(slavesAmount*sizeof(FILE *))) == NULL){
+        fd_set read_fd;
+        int fd_amount, max_fd;
+
+        max_fd = 0;
+
+        /*
+        **  We need to create stream variables for the pipes that we can use for reading all the results
+        **  without any risk of reading more than we should.
+        */
+
+        FILE **pipe_streams;
+        if((pipe_streams = malloc(slaves_amount*sizeof(FILE *))) == NULL){
             perror("malloc");
             exit(EXIT_FAILURE);
         }
 
-        for(int i=0; i < slavesAmount ;i++){
-            ndfs = outPipes.pipes[i][0] > ndfs ? outPipes.pipes[i][0] : ndfs;
-            if((pipeStreams[i] = fdopen(outPipes.pipes[i][0], "r")) == NULL){
+        for(int i = 0; i < slaves_amount ;i++){
+            max_fd = out_pipes.pipes[i][0] > max_fd ? out_pipes.pipes[i][0] : max_fd;
+            if((pipe_streams[i] = fdopen(out_pipes.pipes[i][0], "r")) == NULL){
                 perror("fdopen");
                 exit(EXIT_FAILURE);
             }
-            setlinebuf(pipeStreams[i]);
+
+            /* 
+            **  The worker leaves a new line after every result, that is useful for us to 
+            **  separate each result correctly.
+            */
+
+            setlinebuf(pipe_streams[i]);
         }
-        ndfs++;
+
+        max_fd++;
 
 
-        char buffer[PIPE_BUFF] = {0};
-        char *bufferPtr;
-        int *closedPipes = calloc(slavesAmount, sizeof(int));
-        if(closedPipes == NULL){
+        char *buffer_ptr;
+        int *closed_pipes = calloc(slaves_amount, sizeof(int));
+        if(closed_pipes == NULL){
             perror("calloc");
             exit(EXIT_FAILURE);
         }
-        int closedPipesAmount = 0;
 
-        // We need to process the rest of the programs arguments
-        while(closedPipesAmount < slavesAmount){
-            // Initialize the File Descriptor set for the use of select
-            FD_ZERO(&readfd);
-            for(int i=0; i<slavesAmount ;i++){
-                if(closedPipes[i] != 1)
-                    FD_SET(outPipes.pipes[i][0], &readfd);
+        int closed_pipes_amount = 0;
+
+        
+        // We need to process the rest of the programs arguments.
+
+        while(closed_pipes_amount < slaves_amount){
+            
+            // Initialize the File Descriptor set for the use of select.
+            
+            FD_ZERO(&read_fd);
+            for(int i = 0; i<slaves_amount ;i++){
+                if(closed_pipes[i] != 1)
+                    FD_SET(out_pipes.pipes[i][0], &read_fd);
             }
 
-            // Using pselect and unmasking the childs should let the program free of race conditions
-            if((fdAmount = select(ndfs, &readfd, NULL, NULL, NULL)) == ERROR){
+            if((fd_amount = select(max_fd, &read_fd, NULL, NULL, NULL)) == ERROR){
                 perror("select");
                 exit(EXIT_FAILURE);
             }
-            // No slave processes free, should never happen because we're not using a timeout condition
-            if(fdAmount == 0) continue;
 
-
-            // For every process that is ready, we can write on it the next file that needs to be processed
-            for(int i=0; i < slavesAmount && fdAmount > 0 ;i++){
-                if(closedPipes[i] != 1 && FD_ISSET(outPipes.pipes[i][0], &readfd)){
-                    bufferPtr = fgets(buffer, PIPE_BUFF, pipeStreams[i]);
-                    
+            // For every every result that is ready, we can raed it and write it on the shared memory.
+            
+            for(int i = 0; i < slaves_amount && fd_amount > 0 ;i++){
+                if(closed_pipes[i] != 1 && FD_ISSET(out_pipes.pipes[i][0], &read_fd)){
+                    buffer_ptr = fgets(aux_buffer, PIPE_BUFF, pipe_streams[i]);
+                
                     // EOF reached on that pipe
-                    if(bufferPtr == NULL){
-                        if(close(outPipes.pipes[i][0]) == ERROR){
+
+                    if(buffer_ptr == NULL){
+                        if(close(out_pipes.pipes[i][0]) == ERROR){
                             perror("close");
                             exit(EXIT_FAILURE);
                         }
-                        free(outPipes.pipes[i]);
-                        closedPipes[i] = 1;
-                        closedPipesAmount++;
+                        free(out_pipes.pipes[i]);
+                        closed_pipes[i] = 1;
+                        closed_pipes_amount++;
                     } else{
-                        int length = strlen(buffer);
-
-                        write_to_shared_memory(shm, buffer, length);
-                        write(output_fd, buffer, length);
-
-                        for(int i=0; buffer[i] != '\0' ;i++) buffer[i] = '\0';                  
-
+                        int length = strlen(aux_buffer);
+                        write_to_shared_memory(shared_mem,aux_buffer, length);
+                        write(output_fd, aux_buffer,length);
                     }
-                    fdAmount--;
+
+                    fd_amount--;
                 }
             }
         }
 
         // Every pipe is closed, now we need to free the remaining memory spaces and finish this process
-        free(outPipes.pipes);
-        free(closedPipes);
-        free(pipeStreams);
 
-        for(int i=0; buffer[i] != '\0' ;i++) buffer[i] = '\0';
+        free(out_pipes.pipes);
+        free(closed_pipes);
+        free(pipe_streams);
 
         // We notify to the shared memory that we finished writing in it
-        strcpy(buffer, "$");
-        write_to_shared_memory(shm, buffer, strlen(buffer));
-        
-        sleep(3);
+
+        strcpy(aux_buffer, "$");
+        write_to_shared_memory(shared_mem, aux_buffer, strlen(aux_buffer));
+
+        sleep(4);
   
-        unlink_shared_memory_resources(shm);
+        unlink_shared_memory_resources(shared_mem);
         if(close(output_fd) == ERROR){
             perror("close");
             exit(EXIT_FAILURE);
@@ -282,69 +326,77 @@ int main(int argc, char *argv[]) {
         return EXIT_SUCCESS;
     }
 
-    // If we are the mainProcess, we still need to keep writing the remaining paths evenly on the slaves' pipes
-    // But first, we need to get rid of the pipes that we don't need
-    for(int i=0; i<slavesAmount ;i++){
-        if(close(outPipes.pipes[i][0]) == ERROR){
+    /* 
+    **  If we are the father of all processes, we still need to keep writing the remaining paths evenly
+    **  on the slaves' pipes. But first, we need to get rid of the pipes that we don't need.
+    */
+
+    for(int i = 0; i < slaves_amount ;i++){
+        if(close(out_pipes.pipes[i][0]) == ERROR){
             perror("close");
             exit(EXIT_FAILURE);
         }
-        free(outPipes.pipes[i]);
+        free(out_pipes.pipes[i]);
     }
-    free(outPipes.pipes);
+    free(out_pipes.pipes);
 
-    fd_set writefd;
-    int fdAmount, ndfs;
+    fd_set write_fd;
+    int fd_amount, max_fd;
 
-    ndfs = 0;
-    for(int i=0; i < slavesAmount ;i++)
-        ndfs = inPipes.pipes[i][1] > ndfs ? inPipes.pipes[i][1] : ndfs;
-    ndfs++;
+    max_fd = 0;
+    
+    for(int i = 0; i < slaves_amount ;i++){
+        max_fd = in_pipes.pipes[i][1] > max_fd ? in_pipes.pipes[i][1] : max_fd;
+    }
+    
+    max_fd++;
 
-    // We need to process the rest of the programs arguments
-    while(argCount < argc){
-        // Initialize the File Descriptor set for the use of select
-        FD_ZERO(&writefd);
-        for(int i=0; i<slavesAmount ;i++){
-            FD_SET(inPipes.pipes[i][1], &writefd);
+    // We need to process the rest of the programs arguments.
+
+    while(arg_count < argc){
+        
+        // Initialize the File Descriptor set for the use of select.
+        FD_ZERO(&write_fd);
+        
+        for(int i = 0; i<slaves_amount ;i++){
+            FD_SET(in_pipes.pipes[i][1], &write_fd);
         }
 
-        // Using pselect and unmasking the childs should let the program free of race conditions
-        if((fdAmount = select(ndfs, NULL, &writefd, NULL, NULL)) == ERROR){
+        if((fd_amount = select(max_fd, NULL, &write_fd, NULL, NULL)) == ERROR){
             perror("select");
             exit(EXIT_FAILURE);
         }
-        // No slave processes free, should't happen
-        if(fdAmount == 0) continue;
-        // For every process that is ready, we can write on it the next file that needs to be processed
-        for(int i=0; i < slavesAmount && argCount < argc;i++){
-            if(FD_ISSET(inPipes.pipes[i][1], &writefd)){
-                sprintf(writeBuff,"%s\n",argv[argCount]);
-                
-                write(inPipes.pipes[i][1], writeBuff, strlen(writeBuff));
 
-                argCount++;
-            }    
-            
+        // For every process that is ready, we can write on it the next file that needs to be processed.
+
+        for(int i = 0; i < slaves_amount && arg_count < argc ;i++){
+            if(FD_ISSET(in_pipes.pipes[i][1], &write_fd)){
+                sprintf(aux_buffer,"%s\n",argv[arg_count]);
+                
+                write(in_pipes.pipes[i][1], aux_buffer, strlen(aux_buffer));
+
+                arg_count++;
+            }
         }
     }
 
     // No arguments left, now we need to close the pipes and free the heap
-    for(int i=0; i < slavesAmount ;i++){
-        if(close(inPipes.pipes[i][1]) == ERROR){
+
+    for(int i = 0; i < slaves_amount ;i++){
+        if(close(in_pipes.pipes[i][1]) == ERROR){
             perror("close");
             exit(EXIT_FAILURE);
         }
-        free(inPipes.pipes[i]);
+        free(in_pipes.pipes[i]);
     }
-    free(inPipes.pipes);
+    free(in_pipes.pipes);
 
     // Waits until ALL child processes finishes their tasks
+
     while(waitpid(-1, &status, 0) > 0);
     
-    //wait(&status);
     if(status != 0){
-        perror("status of some child");
+        perror("Status of some child");
         exit(EXIT_FAILURE);
     }
     return EXIT_SUCCESS;
