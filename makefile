@@ -18,4 +18,4 @@ debug: LDFLAGS += -g
 debug: clean all
 
 clean:
-	rm -f slave vista mainProcess *.o
+	rm -f slave vista mainProcess *.o output.txt
