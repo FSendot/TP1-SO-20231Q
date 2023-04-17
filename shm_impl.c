@@ -39,7 +39,11 @@ typedef struct shared_memory_CDT{
 
 
 shared_memory_ADT initialize_shared_memory(size_t shm_size) {
-    shared_memory_ADT shm = malloc(sizeof(shared_memory_CDT));
+    shared_memory_ADT shm;
+    if((shm = malloc(sizeof(shared_memory_CDT))) == NULL){
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
 
     shm->shm_size = shm_size;
     shm->hashes_unread = sem_open(SHM__READ_SEM, O_RDWR | O_CREAT, 0666, 0);
@@ -47,8 +51,8 @@ shared_memory_ADT initialize_shared_memory(size_t shm_size) {
     
     //  A new shared memory object initially has zero length--the size of the object.
     
-    int shm_fd = shm_open(SHM_NAME, O_RDWR | O_CREAT, 0666);
-    if (shm_fd == ERROR) {
+    int shm_fd;
+    if ((shm_fd = shm_open(SHM_NAME, O_RDWR | O_CREAT, 0666)) == ERROR) {
         perror("shm_open");
         exit(EXIT_FAILURE);
     }  
@@ -64,9 +68,8 @@ shared_memory_ADT initialize_shared_memory(size_t shm_size) {
     
     // Now we map the shared memory on the virtual memory of the caller process.
 
-    void *shm_ptr = mmap(NULL, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-    
-    if (shm_ptr == MAP_FAILED) {
+    void *shm_ptr;
+    if ((shm_ptr = mmap(NULL, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0)) == MAP_FAILED) {
         perror("mmap");
         exit(EXIT_FAILURE);
     }
@@ -80,8 +83,8 @@ shared_memory_ADT open_shared_memory(size_t shm_size) {
     if(shm_size < 1)
         return NULL;
     
-    shared_memory_ADT shm = malloc(sizeof(shared_memory_CDT));
-    if(shm == NULL){
+    shared_memory_ADT shm;
+    if((shm = malloc(sizeof(shared_memory_CDT))) == NULL){
         perror("malloc");
         exit(EXIT_FAILURE);
     }
@@ -102,9 +105,8 @@ shared_memory_ADT open_shared_memory(size_t shm_size) {
 
     //  Now we map the shared memory on the virtual memory of the caller process
     
-    void *shm_ptr = mmap(NULL, shm_size, PROT_READ, MAP_SHARED, shm_fd, 0);
-
-    if (shm_ptr == MAP_FAILED) {
+    void *shm_ptr;
+    if ((shm_ptr = mmap(NULL, shm_size, PROT_READ, MAP_SHARED, shm_fd, 0)) == MAP_FAILED) {
         perror("mmap");
         exit(EXIT_FAILURE);
     }

@@ -68,8 +68,6 @@ void launch_md5(char *path){
 }
 
 int main(int argc, char *argv[]){
-    setlinebuf(stdout);
-
     //  If slave receives arguments
     if(argc > 1){
         for(int i=1; i < argc ;i++){

@@ -27,8 +27,9 @@ int main(int argc, char *argv[]) {
         if (shared_mem_size_str[line_len-1] == '\n') {
                 shared_mem_size_str[line_len-1] = '\0';
                 shared_mem_size = atoi(shared_mem_size_str);    
+        } else { 
+            shared_mem_size = atoi(shared_mem_size_str);
         }
-        shared_mem_size = atoi(shared_mem_size_str);
 
         free(shared_mem_size_str);
     }
