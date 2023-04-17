@@ -11,6 +11,7 @@
 
 #define PIPE_BUFF 512
 
+void setlinebuf(FILE *stream);
 ssize_t getline(char **linePtr, size_t *n, FILE *stream);
 
 void launchMD5(char *path){
@@ -49,14 +50,13 @@ void launchMD5(char *path){
         char readBuffer[PIPE_BUFF] = {0};
 
         read(pipefd[0], readBuffer, PIPE_BUFF);
-
         close(pipefd[0]);
 
         printf("Process ID: %d | Hash Value and Filename: %s", getpid(), readBuffer);
-        if(fflush(NULL) == EOF){
+        if(fflush(stdout) == EOF){
             perror("fflush");
             exit(EXIT_FAILURE);
-        }    
+        }
     } else{
         close(pipefd[0]);
         perror("md5sum");
@@ -65,7 +65,7 @@ void launchMD5(char *path){
 }
 
 int main(int argc, char *argv[]){
-    //setvbuf(stdout, NULL, _IONBF, 0);
+    setlinebuf(stdout);
 
     //If slave receives arguments
     if(argc > 1){

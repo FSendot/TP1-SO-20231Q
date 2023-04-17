@@ -48,7 +48,6 @@ int main(int argc, char *argv[]) {
     shared_memory_ADT shm = open_shared_memory(shm_size);
     char buffer[BUFFER_SIZE] = {0};
 
-
     int bytesRead = read_shared_memory(shm, buffer);
     while(bytesRead != EOF) {
         printf("%s", buffer);
