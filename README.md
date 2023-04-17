@@ -13,5 +13,5 @@ Por último, se puede ejecutar el programa pipeando la salida del proceso princi
 
 Para compilar con fines de debugging, utilizar el comando `make debug`. Este conservará todos los archivos `*.o` y se compilará y linkeditará con el flag `-g` para poder ser usados con los programas de debugging que corresponda.
 
-# Aclaraciones finales
+### Aclaraciones finales
 Una vez esté todo completado, puede ejecutar el comando `make clean`, que eliminará todos los archivos presentes en el directorio, a excepción de los códigos fuentes del programa (incluye el borrado de output.txt).
